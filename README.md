@@ -116,7 +116,7 @@ Obviously any prior knowledge of the holy trinity of python ML modules (pandas, 
 
 ### 2.1 Kickstart a new project  <a name="newproject"></a>
 
-Each individual framework contains a `generate_XXX_project.py` file that creates a new project code base. To be able to run this script, you only have to install Jinja2: `pip install Jinja2==2.10.3`.
+Each individual framework contains a `generate_XXX_project.py` file that creates a new project code base. To be able to run this script, you only have to install Jinja2: `pip install Jinja2==3.0.3`.
 They take several parameters as input :
 
 - **'-n'** or **'--name'** : Name of the package/project (lowercase, no whitespace)
