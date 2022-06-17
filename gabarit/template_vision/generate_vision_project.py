@@ -26,6 +26,8 @@ from shutil import copyfile
 from distutils.dir_util import copy_tree
 from jinja2 import Environment, FileSystemLoader
 
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def main() -> None:
     '''Generates a python template'''
@@ -33,8 +35,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('-n', '--name', required=True, help='Project name')
     parser.add_argument('-p', '--path', required=True, help='Path (relative or absolute) to project directory')
-    parser.add_argument('-c', '--config', default='default_config.ini', help='Configuration file to use (relative or absolute).')
-    parser.add_argument('--upload', '--upload_intructions', default='default_model_upload_instructions.md',
+    parser.add_argument('-c', '--config', default=os.path.join(ROOT_DIR, 'default_config.ini'), help='Configuration file to use (relative or absolute).')
+    parser.add_argument('--upload', '--upload_intructions', default=os.path.join(ROOT_DIR, 'default_model_upload_instructions.md'),
                         help='Markdown file with models upload instructions (relative or absolute).')
     parser.add_argument('--dvc', '--dvc_config', default=None, help='DVC configuration file to use (relative or absolute).')
     args = parser.parse_args()
@@ -131,7 +133,7 @@ def generate(project_name: str, project_path: str, config_path: str,
         for template_name in env.list_templates():
 
             # Nominal process
-            if not template_name.endswith(('.jpg', '.jpeg', '.png')):
+            if not template_name.endswith(('.jpg', '.jpeg', '.png', '.pyc', '.pyo')):
                 # Get render
                 template = env.get_template(template_name)
                 render = template.render(package_name=project_name,
