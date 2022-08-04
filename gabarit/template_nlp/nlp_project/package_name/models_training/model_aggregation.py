@@ -36,7 +36,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List, aggregation_function='majority_vote', using_proba:bool=None, **kwargs):
+    def __init__(self, list_models: List, aggregation_function='majority_vote', using_proba:bool=None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
@@ -72,12 +72,12 @@ class ModelAggregation(ModelClass):
             aggregation_function = dict_aggregation_function[aggregation_function]['function']
         self.aggregation_function = aggregation_function
 
-        # Gestion modèles
+        # Manage model
         self.list_models = list_models
         self.list_real_models = None
         self._get_real_models()
 
-    def _get_real_models(self):
+    def _get_real_models(self) -> None:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
         '''
         if self.list_real_models is None:
@@ -91,7 +91,7 @@ class ModelAggregation(ModelClass):
                 list_real_models.append(real_model)
             self.list_real_models = list_real_models
 
-    def fit(self, x_train, y_train, **kwargs):
+    def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
            **kwargs enables Keras model compatibility.
 
@@ -108,7 +108,7 @@ class ModelAggregation(ModelClass):
 
         self._get_real_models()
 
-        # we fit each model
+        # Fit each model
         list_models = []
         for model in self.list_real_models:
             model.fit(x_train, y_train, **kwargs)
@@ -133,14 +133,14 @@ class ModelAggregation(ModelClass):
             (np.array): array of shape = [n_samples]
         '''
 
-        #On choisit si on se base sur les probas de chaque model ou si on utilise leur prédiction
+        # We decide whether to rely on each model's probas or their prediction
         if self.using_proba:
             proba = self._get_probas(x_test,**kwargs)
             return self.aggregation_function(proba)
         else:
             dict_predict = self._get_predictions(x_test,**kwargs)
             df = pd.DataFrame(dict_predict)
-            # self.aggregation_function est la fonction qui fait réellement le boulot d'agrégation
+            # self.aggregation_function is the function that actually does the aggregation work
             df['prediction_finale'] = df.apply(lambda x:self.aggregation_function(x),axis=1)
             return df['prediction_finale'].values
 
@@ -153,9 +153,14 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (list): array of shape = [n_samples, n_features]
+        Raises:
+            AttributeError: if not self.using_proba
         '''
+        if not self.using_proba:
+            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+
         self._get_real_models()
-        # On calcule les probas pour chaque modèle
+        # Predict for each model
         list_predict_proba = []
         for model in self.list_real_models:
             list_predict_proba.append(model.predict_proba(x_test,**kwargs))
@@ -170,10 +175,15 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (dict): dictionary in which the values are lists of underlying model predictions
+        Raises:
+            AttributeError: if self.using_proba
         '''
+        if self.using_proba:
+            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+
         self._get_real_models()
         dict_predict = {}
-        # On prédit pour chaque modèle
+        # Predict for each model
         for i, model in enumerate(self.list_real_models):
             dict_predict[i] = model.predict(x_test,**kwargs)
         return dict_predict
@@ -187,17 +197,29 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (np.array): array of shape = [n_samples, n_classes]
+        Raises:
+            AttributeError: if not self.using_proba
         '''
+        if not self.using_proba:
+            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+
         list_predict_proba = self._get_probas(x_test,**kwargs)
-        # On fait la moyenne des probas de tous les modèles
+        # The probas of all models are averaged.
         return sum(list_predict_proba)/len(self.list_models)
 
-    def proba_argmax(self, proba:List) -> list:
+    def proba_argmax(self, proba:List) -> np.array:
         '''We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
 
         Args:
             (List): list of the probability of each model
+        Returns:
+            (np.array): array of shape = [n_samples]
+        Raises:
+            AttributeError: if not self.using_proba
         '''
+        if not self.using_proba:
+            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+
         proba_average = sum(proba)/len(self.list_models)
         def get_class(x):
             return self.list_classes[x]
@@ -223,7 +245,7 @@ class ModelAggregation(ModelClass):
         else:
             return votes.index[0]
 
-    def save(self, json_data: dict = None):
+    def save(self, json_data: dict = None) -> None:
         '''Saves the model
 
         Kwargs:
@@ -252,7 +274,7 @@ class ModelAggregation(ModelClass):
         super().save(json_data=json_data)
         self.list_real_models = list_real_models
 
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None):
+    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None) -> None:
         '''Function to obtain and save model metrics
 
         Args:

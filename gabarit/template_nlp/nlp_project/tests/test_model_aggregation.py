@@ -61,7 +61,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         # Init., test all parameters
-        list_models = [SVC(), ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models)
         self.assertEqual(model.model_dir, model_dir)
         self.assertEqual(model.list_models, list_models)
@@ -72,7 +72,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         # aggregation_function is 'proba_argmax'
-        list_models = [SVC(), ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         self.assertTrue(type(model.list_models) == list)
         self.assertTrue(type(model.using_proba) == bool)
@@ -117,7 +117,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         # model_new = ModelAggregation(list_models=list_models_dir)
         # self.assertEqual(model.list_real_models, model_new.list_real_models)
         remove_dir(model_dir)
-    
+
     def test03_model_aggregation_fit(self):
         '''Test of the method fit of tfidfDemo.models_training.model_aggregation.ModelAggregation'''
 
@@ -140,15 +140,15 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.nb_fit, 1)
         remove_dir(model_dir)
 
-        # Multi-labels
-        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-        self.assertFalse(model.trained)
-        self.assertEqual(model.nb_fit, 0)
-        model.fit(x_train, y_train_multi[cols])
-        self.assertTrue(model.trained)
-        self.assertEqual(model.nb_fit, 1)
-        remove_dir(model_dir)
+        # # Multi-labels
+        # list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        # model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+        # self.assertFalse(model.trained)
+        # self.assertEqual(model.nb_fit, 0)
+        # model.fit(x_train, y_train_multi[cols])
+        # self.assertTrue(model.trained)
+        # self.assertEqual(model.nb_fit, 1)
+        # remove_dir(model_dir)
 
         # Error
         with self.assertRaises(RuntimeError):
@@ -212,7 +212,8 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
-            model = ModelAggregation(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
             model.predict_proba('test')
         remove_dir(model_dir)
 
@@ -227,7 +228,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         y_train_mono = np.array([0, 1, 0, 1, 2])
 
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
         probas = model._get_probas(x_train)
         self.assertTrue(type(probas) == list)
@@ -242,8 +243,127 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
             model._get_probas('test')
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = True
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(list_models=list_models)
+            model.fit(x_train, y_train_mono)
+            model._get_probas(x_train)
+        remove_dir(model_dir)
+
+    def test06_model_aggregation_get_predictions(self):
+        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation._get_predictions'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+        model.fit(x_train, y_train_mono)
+        preds = model._get_predictions(x_train)
+        self.assertTrue(type(preds) == dict)
+        self.assertEqual(len(preds), 2)
+
+        model_svm = ModelTfidfSvm()
+        model_svm.fit(x_train, y_train_mono)
+        preds_svm = model_svm.predict(x_train)
+        self.assertEqual(preds[0].all(), preds_svm.all())
+        remove_dir(model_dir)
+
+        # Model needs to be fitted
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+            model._get_predictions('test')
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = False
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+            model.fit(x_train, y_train_mono)
+            model._get_predictions(x_train)
+        remove_dir(model_dir)
+
+    def test07_model_aggregation_predict_proba(self):
+        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.predict_proba'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+        n_classes = 3
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_train_mono)
+        probas = model.predict_proba(x_train)
+        self.assertEqual(len(probas), len(x_train))
+
+        model_svm = ModelTfidfSvm()
+        model_svm.fit(x_train, y_train_mono)
+        probas_svm = model_svm.predict_proba(x_train)
+        self.assertEqual(len(probas[0]), n_classes)
+        remove_dir(model_dir)
+
+        # Model needs to be fitted
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+            model.predict_proba('test')
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = True
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(list_models=list_models)
+            model.fit(x_train, y_train_mono)
+            model.predict_proba(x_train)
+        remove_dir(model_dir)
+
+    def test08_model_aggregation_proba_argmax(self):
+        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.proba_argmax'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'oui', 'non', 'oui', 'non'])
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_train_mono)
+        argmax = model.proba_argmax(model._get_probas(x_train))
+        self.assertEqual(len(argmax), len(x_train))
+        remove_dir(model_dir)
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_train_str)
+        argmax = model.proba_argmax(model._get_probas(x_train))
+        self.assertEqual(len(argmax), len(x_train))
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = True
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+            model.fit(x_train, y_train_mono)
+            probas_list = model._get_probas(x_train)
+            model_new = ModelAggregation(list_models=list_models)
+            model_new.proba_argmax(probas_list)
         remove_dir(model_dir)
 
 # Perform tests
