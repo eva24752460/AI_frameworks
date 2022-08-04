@@ -152,9 +152,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Error
         with self.assertRaises(RuntimeError):
-            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            svm = ModelTfidfSvm().fit(x_train, y_train_mono)
+            list_models = [svm, ModelTfidfSuperDocumentsNaive()]
             model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-            model.fit(x_train, y_train_mono)
             model.fit(x_train, y_train_mono)
         remove_dir(model_dir)
 
@@ -345,26 +345,171 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        argmax = model.proba_argmax(model._get_probas(x_train))
-        self.assertEqual(len(argmax), len(x_train))
+        get_probas = model.proba_argmax(model._get_probas(x_train))
+        self.assertEqual(len(get_probas), len(x_train))
         remove_dir(model_dir)
 
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_str)
-        argmax = model.proba_argmax(model._get_probas(x_train))
-        self.assertEqual(len(argmax), len(x_train))
+        get_probas = model.proba_argmax(model._get_probas(x_train))
+        self.assertEqual(len(get_probas), len(x_train))
         remove_dir(model_dir)
 
         # Model needs to be using_proba = True
         with self.assertRaises(AttributeError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
             model.fit(x_train, y_train_mono)
             probas_list = model._get_probas(x_train)
             model_new = ModelAggregation(list_models=list_models)
             model_new.proba_argmax(probas_list)
         remove_dir(model_dir)
+
+    def test09_model_aggregation_majority_vote(self):
+        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.majority_vote'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'oui', 'non', 'oui', 'non'])
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        model.fit(x_train, y_train_mono)
+        get_proba = pd.DataFrame(model._get_predictions(x_train))
+        self.assertEqual(len(get_proba), len(x_train))
+        remove_dir(model_dir)
+
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        model.fit(x_train, y_train_str)
+        get_proba = pd.DataFrame(model._get_predictions(x_train))
+
+        self.assertEqual(len(get_proba), len(x_train))
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = False
+        with self.assertRaises(AttributeError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+            model.fit(x_train, y_train_mono)
+            model._get_predictions(x_train)
+        remove_dir(model_dir)
+
+    def test10_model_aggregation_save(self):
+        '''Test of the method save of tfidfDemo.models_training.model_aggregation.ModelAggregation.save'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # With proba_argmax
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.save(json_data={'test': 8})
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
+        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
+            configs = json.load(f)
+        self.assertEqual(configs['test'], 8)
+        self.assertTrue('mainteners' in configs.keys())
+        self.assertTrue('date' in configs.keys())#
+        self.assertTrue('package_version' in configs.keys())
+        self.assertEqual(configs['package_version'], utils.get_package_version())
+        self.assertTrue('model_name' in configs.keys())
+        self.assertTrue('model_dir' in configs.keys())
+        self.assertTrue('trained' in configs.keys())
+        self.assertTrue('nb_fit' in configs.keys())
+        self.assertTrue('list_classes' in configs.keys())
+        self.assertTrue('dict_classes' in configs.keys())
+        self.assertTrue('x_col' in configs.keys())
+        self.assertTrue('y_col' in configs.keys())
+        self.assertTrue('multi_label' in configs.keys())
+        self.assertTrue('level_save' in configs.keys())
+        self.assertTrue('librairie' in configs.keys())
+        self.assertEqual(configs['librairie'], None)
+        remove_dir(model_dir)
+
+        # With majority_vote
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        model.save(json_data={'test': 8})
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
+        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
+            configs = json.load(f)
+        self.assertEqual(configs['test'], 8)
+        self.assertTrue('mainteners' in configs.keys())
+        self.assertTrue('date' in configs.keys())
+        self.assertTrue('package_version' in configs.keys())
+        self.assertEqual(configs['package_version'], utils.get_package_version())
+        self.assertTrue('model_name' in configs.keys())
+        self.assertTrue('model_dir' in configs.keys())
+        self.assertTrue('trained' in configs.keys())
+        self.assertTrue('nb_fit' in configs.keys())
+        self.assertTrue('list_classes' in configs.keys())
+        self.assertTrue('dict_classes' in configs.keys())
+        self.assertTrue('x_col' in configs.keys())
+        self.assertTrue('y_col' in configs.keys())
+        self.assertTrue('multi_label' in configs.keys())
+        self.assertTrue('level_save' in configs.keys())
+        self.assertTrue('librairie' in configs.keys())
+        self.assertEqual(configs['librairie'], None)
+        remove_dir(model_dir)
+
+        # Model needs to be using_proba = False
+        with self.assertRaises(ValueError):
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+            model.save(json_data='test')
+        remove_dir(model_dir)
+
+    def test11_model_aggregation_get_and_save_metrics(self):
+        '''Test of the method tfidfDemo.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
+
+        # Model creation
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+        model_name = 'test'
+
+        # Set vars
+        x_train = np.array(["pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1])
+
+        # get_and_save_metrics - mono-label
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_train_mono)
+        model.list_classes = [0, 1,]
+        y_true = np.array([0, 1, 0, 1])
+        y_pred = np.array([0, 1, 1, 0])
+        df_metrics = model.get_and_save_metrics(y_true, y_pred)
+        self.assertEqual(df_metrics.shape[0], 3) # 2 classes + All
+        self.assertEqual(df_metrics.loc[2, :]['Label'], 'All')
+        self.assertEqual(df_metrics.loc[2, :]['Accuracy'], 0.5)
+        plots_path = os.path.join(model.model_dir, 'plots')
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'predictions.csv')))
+        self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix_normalized.png')))
+        self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix.png')))
+        remove_dir(model_dir)
+
+        # # get_and_save_metrics - multi-labels
+        # list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        # model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        # model.list_classes = ['test1', 'test2', 'test3']
+        # y_true = np.array([[0, 1, 0], [1, 1, 0], [0, 0, 0]])
+        # y_pred = np.array([[0, 1, 1], [1, 1, 0], [0, 1, 0]])
+        # df_metrics = model.get_and_save_metrics(y_true, y_pred)
+        # self.assertEqual(df_metrics.shape[0], 3) # 2 classes + All
+        # self.assertEqual(df_metrics.loc[2, :]['Label'], 'All')
+        # self.assertEqual(df_metrics.loc[2, :]['Accuracy'], 0.5)
+        # plots_path = os.path.join(model.model_dir, 'plots')
+        # self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'predictions.csv')))
+        # self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix_normalized.png')))
+        # self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix.png')))
 
 # Perform tests
 if __name__ == '__main__':

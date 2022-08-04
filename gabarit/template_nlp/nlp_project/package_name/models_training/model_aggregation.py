@@ -68,7 +68,7 @@ class ModelAggregation(ModelClass):
             if self.using_proba is None:
                 self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
             elif self.using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
-                raise ValueError(f"The aggregation_function object ({aggregation_function}) does not support using_proba=({self.using_proba})")
+                raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({self.using_proba})")
             aggregation_function = dict_aggregation_function[aggregation_function]['function']
         self.aggregation_function = aggregation_function
 
@@ -157,7 +157,7 @@ class ModelAggregation(ModelClass):
             AttributeError: if not self.using_proba
         '''
         if not self.using_proba:
-            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+            raise AttributeError(f"_get_probas is not compatible with using_proba=False")
 
         self._get_real_models()
         # Predict for each model
@@ -179,7 +179,7 @@ class ModelAggregation(ModelClass):
             AttributeError: if self.using_proba
         '''
         if self.using_proba:
-            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+            raise AttributeError(f"_get_predictions is not compatible with using_proba=False")
 
         self._get_real_models()
         dict_predict = {}
@@ -201,7 +201,7 @@ class ModelAggregation(ModelClass):
             AttributeError: if not self.using_proba
         '''
         if not self.using_proba:
-            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+            raise AttributeError(f"predict_proba is not compatible with using_proba=False")
 
         list_predict_proba = self._get_probas(x_test,**kwargs)
         # The probas of all models are averaged.
@@ -218,7 +218,7 @@ class ModelAggregation(ModelClass):
             AttributeError: if not self.using_proba
         '''
         if not self.using_proba:
-            raise AttributeError(f"The aggregation_function object proba_argmax does not support using_proba=False")
+            raise AttributeError(f"majority_vote is not compatible with using_proba=False")
 
         proba_average = sum(proba)/len(self.list_models)
         def get_class(x):
@@ -233,15 +233,19 @@ class ModelAggregation(ModelClass):
         Args:
             (pd.Series) : the Series containing the predictions of the various models
             (pd.Series) : series in which the values are the lists of underlying model predictions
+        Return:
+            (pd.Series) :
+        Raises:
+            AttributeError: if self.using_proba
         '''
+        if self.using_proba:
+            raise AttributeError(f"majority_vote is not compatible with using_proba=True")
         if self.multi_label == True:
-            self.logger.warning("majority_vote n'est pas compatible avec le multi-label")
+            self.logger.warning("majority_vote is not compatible with the multi-label")
+
         votes = predictions.value_counts().sort_values(ascending=False)
-        if len(votes)>1:
-            if votes.iloc[0]==votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
+        if len(votes)>1 and votes.iloc[0]==votes.iloc[1]:
+            return predictions[0]
         else:
             return votes.index[0]
 
@@ -251,15 +255,17 @@ class ModelAggregation(ModelClass):
         Kwargs:
             json_data (dict): Additional configurations to be saved
         Raises:
-            TypeError: if the json_data object is not of type dict
+            ValueError: if the json_data object is not of type dict
         '''
+        if type(json_data) is not dict:
+            raise ValueError('json_data must be a type dict')
         if json_data is None:
             json_data = {}
 
-        #One gives the agregated model responsible for the save
+        # One gives the agregated model responsible for the save
         json_data['agregated_model'] = os.path.split(self.model_dir)[-1]
 
-        #Save each model
+        # Save each model
         list_models = []
         for model in self.list_real_models:
             model.save(json_data = json_data.copy())
@@ -274,7 +280,8 @@ class ModelAggregation(ModelClass):
         super().save(json_data=json_data)
         self.list_real_models = list_real_models
 
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None) -> None:
+    @utils.trained_needed
+    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None) -> pd.Series:
         '''Function to obtain and save model metrics
 
         Args:
@@ -288,27 +295,26 @@ class ModelAggregation(ModelClass):
         Raises:
             TypeError: if the series_to_add object is not of type list, and has pd.Series type elements
         Returns:
-            pd.DataFrame:  the df which contains the statistics
+            pd.DataFrame: the df which contains the statistics
         '''
         if series_to_add is not None:
             if sum([1 if type(_) == pd.Series else 0 for _ in series_to_add]) != len(series_to_add):
-                raise TypeError("L'objet series_to_add doit être composé de pd.Series uniquement")
+                raise TypeError("The series_to_add object must be composed of pd.Series")
 
         for model in self.list_real_models:
             model.get_and_save_metrics(y_true=y_true,
-                                     y_pred=y_pred,
-                                     x=x,
-                                     series_to_add=series_to_add,
-                                     type_data=type_data,
-                                     model_logger=model_logger)
+                                        y_pred=y_pred,
+                                        x=x,
+                                        series_to_add=series_to_add,
+                                        type_data=type_data,
+                                        model_logger=model_logger)
 
-
-        super().get_and_save_metrics(y_true=y_true,
-                                     y_pred=y_pred,
-                                     x=x,
-                                     series_to_add=series_to_add,
-                                     type_data=type_data,
-                                     model_logger=model_logger)
+        return super().get_and_save_metrics(y_true=y_true,
+                                            y_pred=y_pred,
+                                            x=x,
+                                            series_to_add=series_to_add,
+                                            type_data=type_data,
+                                            model_logger=model_logger)
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
