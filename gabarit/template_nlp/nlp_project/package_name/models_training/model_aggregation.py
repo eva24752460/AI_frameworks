@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-## Modèle Agrégation
+## Model Agrégation
 
 # Copyright (C) <2018-2022>  <Agence Data Services, DSI Pôle Emploi>
 #
@@ -18,7 +18,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Classes :
-# - ModelAgregation -> Agrégation de modèle ModelClass
+# - ModelAgregation -> model aggregation with ModelClass
+
 
 import logging
 import os
@@ -31,22 +32,22 @@ from {{package_name}}.models_training import utils_models
 from {{package_name}}.monitoring.model_logger import ModelLogger
 from {{package_name}}.models_training.model_class import ModelClass
 
-class ModelAgregation(ModelClass):
-    '''Modèle pour agrégation de plusieurs ModelClass'''
-    _default_name = 'model_agregation'
+class ModelAggregation(ModelClass):
+    '''Model for aggregating multiple ModelClasses'''
+    _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List, agregation_function='majority_vote',using_proba:bool=False, **kwargs):
-        '''Initialisation de la classe (voir  ModelClass pour arguments supplémentaires)
+    def __init__(self, list_models: List, aggregation_function='majority_vote', using_proba:bool=None, **kwargs):
+        '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
-            list_models (list) : liste des modèles à agréger
-            agregation_function (Callable or str) : fonction d'agrégation utilisée
-            using_proba (bool) : dis sur quel objet on agrège (les probas ou les prédictions).
-                                inutile si agregation_function est une str
-
+            list_models (list) : list of model to be aggregated
+            aggregation_function (Callable or str) : aggregation function used
+            using_proba (bool) : which object is being aggregated (the probas or the predictions).
+                                useless if aggregation_function is a str
         Raises:
-            TypeError: si l'objet agregation_function n'est pas du type str ou Callable
-            ValueError : si l'objet agregation_function qui est une str n'est pas présent dans dict_agregation_function
+            TypeError : if the aggregation_function object is not of type str or Callable
+            ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
+            ValueError : if the object aggregation_function is not adapte the value using_proba
         '''
         # Init.
         super().__init__(**kwargs)
@@ -56,18 +57,20 @@ class ModelAgregation(ModelClass):
 
         self.using_proba = using_proba
 
-        #Get the agregation function
-        dict_agregation_function = {'majority_vote':{'function':self.majority_vote,'using_proba':False},
-                                    'proba_argmax':{'function':self.proba_argmax,'using_proba':True}}
-        if not isinstance(agregation_function,(Callable,str)):
-            raise TypeError('L\'objet agregation_function doit être du type str ou Callable.')
-        if isinstance(agregation_function,str):
-            if agregation_function not in dict_agregation_function.keys():
-                raise ValueError(f"L'objet agregation_function ({agregation_function}) n'est pas une option valide ({dict_agregation_function.keys()})")
-            self.using_proba = dict_agregation_function[agregation_function]['using_proba']
-            agregation_function = dict_agregation_function[agregation_function]['function']
-
-        self.agregation_function = agregation_function
+        #Get the aggregation function
+        dict_aggregation_function = {'majority_vote':{'function': self.majority_vote, 'using_proba': False},
+                                    'proba_argmax':{'function': self.proba_argmax, 'using_proba': True}}
+        if not isinstance(aggregation_function,(Callable,str)):
+            raise TypeError('The aggregation_function objects must be of the callable or str types.')
+        if isinstance(aggregation_function,str):
+            if aggregation_function not in dict_aggregation_function.keys():
+                raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
+            if self.using_proba is None:
+                self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
+            elif self.using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
+                raise ValueError(f"The aggregation_function object ({aggregation_function}) does not support using_proba=({self.using_proba})")
+            aggregation_function = dict_aggregation_function[aggregation_function]['function']
+        self.aggregation_function = aggregation_function
 
         # Gestion modèles
         self.list_models = list_models
@@ -75,9 +78,7 @@ class ModelAgregation(ModelClass):
         self._get_real_models()
 
     def _get_real_models(self):
-        '''Populate the self.list_real_models if it is None. Also
-        transforms the ModelClass in self.list_models to the
-        corresponding str if need be.
+        '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
         '''
         if self.list_real_models is None:
             list_real_models = []
@@ -91,22 +92,23 @@ class ModelAgregation(ModelClass):
             self.list_real_models = list_real_models
 
     def fit(self, x_train, y_train, **kwargs):
-        '''Entrainement du modèle
-           **kwargs permet la comptabilité avec les modèles keras
+        '''Trains the model
+           **kwargs enables Keras model compatibility.
+
         Args:
-            x_train (?): array-like or sparse matrix of shape = [n_samples, n_features]
-            y_train (?): array-like, shape = [n_samples, n_features]
+            x_train (?): Array-like, shape = [n_samples]
+            y_train (?): Array-like, shape = [n_samples]
         Raises:
-            RuntimeError: si on essaie d'entrainer un modèle déjà fit
+            RuntimeError: If the model is already fitted
         '''
         if self.trained:
-            self.logger.error("Il n'est pas prévu de pouvoir réentrainer un modèle de type agrégation")
-            self.logger.error("Veuillez entrainer un nouveau modèle")
-            raise RuntimeError("Impossible de réentrainer un modèle de type agrégation")
+            self.logger.error("The model cannot be refitted.")
+            self.logger.error("fit with the new model")
+            raise RuntimeError("The model cannot be refitted.")
 
         self._get_real_models()
 
-        # On fit chaque modèle
+        # we fit each model
         list_models = []
         for model in self.list_real_models:
             model.fit(x_train, y_train, **kwargs)
@@ -122,12 +124,35 @@ class ModelAgregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def _get_probas(self,x_test,**kwargs):
-        '''Récupère les probabilités de chacun des modèles à agréger
+    def predict(self, x_test, **kwargs) -> np.array:
+        '''Prediction
+
         Args:
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
-            (?): array of shape = [n_samples, n_features]
+            (np.array): array of shape = [n_samples]
+        '''
+
+        #On choisit si on se base sur les probas de chaque model ou si on utilise leur prédiction
+        if self.using_proba:
+            proba = self._get_probas(x_test,**kwargs)
+            return self.aggregation_function(proba)
+        else:
+            dict_predict = self._get_predictions(x_test,**kwargs)
+            df = pd.DataFrame(dict_predict)
+            # self.aggregation_function est la fonction qui fait réellement le boulot d'agrégation
+            df['prediction_finale'] = df.apply(lambda x:self.aggregation_function(x),axis=1)
+            return df['prediction_finale'].values
+
+    @utils.data_agnostic_str_to_list
+    @utils.trained_needed
+    def _get_probas(self, x_test, **kwargs) -> list:
+        '''Recover the probability of each model being aggregated
+
+        Args:
+            x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
+        Returns:
+            (list): array of shape = [n_samples, n_features]
         '''
         self._get_real_models()
         # On calcule les probas pour chaque modèle
@@ -138,12 +163,13 @@ class ModelAgregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def _get_predictions(self,x_test,**kwargs):
-        '''Récupère les probabilités de chacun des modèles à agréger
+    def _get_predictions(self, x_test, **kwargs) -> dict:
+        '''Recover the probability of each model being aggregated
+
         Args:
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
-            (?): dictionnaire où les valeurs sont les listes des prédictions des modèles sous-jacents
+            (dict): dictionary in which the values are lists of underlying model predictions
         '''
         self._get_real_models()
         dict_predict = {}
@@ -154,43 +180,23 @@ class ModelAgregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, **kwargs):
-        '''Prédictions sur test
+    def predict_proba(self, x_test, **kwargs) -> np.array:
+        '''Predicts the probabilities on the test set
 
         Args:
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
-            (?): array of shape = [n_samples]
-        '''
-        #On choisit si on se base sur les probas de chaque model ou si on utilise leur prédiction
-        if self.using_proba:
-            proba = self._get_probas(x_test,**kwargs)
-            return self.agregation_function(proba)
-        else:
-            dict_predict = self._get_predictions(x_test,**kwargs)
-            df = pd.DataFrame(dict_predict)
-            # self.agregation_function est la fonction qui fait réellement le boulot d'agrégation
-            df['prediction_finale'] = df.apply(lambda x:self.agregation_function(x),axis=1)
-            return df['prediction_finale'].values
-
-    @utils.data_agnostic_str_to_list
-    @utils.trained_needed
-    def predict_proba(self, x_test, **kwargs):
-        '''Prédictions probabilité sur test
-
-        Args:
-            x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
-        Returns:
-            (?): array of shape = [n_samples]
+            (np.array): array of shape = [n_samples, n_classes]
         '''
         list_predict_proba = self._get_probas(x_test,**kwargs)
         # On fait la moyenne des probas de tous les modèles
         return sum(list_predict_proba)/len(self.list_models)
 
-    def proba_argmax(self, proba:List):
-        '''On prend l'argmax de la moyenne des probabilités des modèles sous-jacent pour fournir une prédiction
+    def proba_argmax(self, proba:List) -> list:
+        '''We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
+
         Args:
-            proba (List) : la liste des probabilités de chacun des modèles
+            (List): list of the probability of each model
         '''
         proba_average = sum(proba)/len(self.list_models)
         def get_class(x):
@@ -198,12 +204,13 @@ class ModelAgregation(ModelClass):
         get_class_v = np.vectorize(get_class)
         return get_class_v(np.argmax(proba_average,axis=1))
 
-    def majority_vote(self, predictions):
-        '''Système de vote majoritaire de plusieurs prédictions.
-        En cas d'égalité, on prend la prédiction du premier modèle (même s'il n'est pas dans les premiers votes)
+    def majority_vote(self, predictions) -> pd.Series:
+        '''A majority voting system of multiple predictions is used.
+        In the case of a tie, we use the first model's prediction (even if it is not in the first votes)
 
         Args:
-            predictions (pd.Series) : la Series contenant les prédictions des différents modèles
+            (pd.Series) : the Series containing the predictions of the various models
+            (pd.Series) : series in which the values are the lists of underlying model predictions
         '''
         if self.multi_label == True:
             self.logger.warning("majority_vote n'est pas compatible avec le multi-label")
@@ -217,12 +224,12 @@ class ModelAgregation(ModelClass):
             return votes.index[0]
 
     def save(self, json_data: dict = None):
-        '''Sauvegarde du modèle
+        '''Saves the model
 
         Kwargs:
-            json_data (dict): configuration à ajouter pour la sauvegarde JSON
+            json_data (dict): Additional configurations to be saved
         Raises:
-            TypeError: si l'objet json_data n'est pas du type dict
+            TypeError: if the json_data object is not of type dict
         '''
         if json_data is None:
             json_data = {}
@@ -246,20 +253,20 @@ class ModelAgregation(ModelClass):
         self.list_real_models = list_real_models
 
     def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None):
-        '''Fonction pour obtenir et sauvegarder les métriques d'un modèle
+        '''Function to obtain and save model metrics
 
         Args:
             y_true (?): array-like, shape = [n_samples, n_features]
             y_pred (?): array-like, shape = [n_samples, n_features]
         Kwargs:
             x (?): array-like or sparse matrix of shape = [n_samples, n_features]
-            series_to_add (list): liste de pd.Series à ajouter à la dataframe
-            type_data (str): type du dataset (validation, test, ...)
-            model_logger (ModelLogger): classe custom pour logger les métriques dans ML Flow
+            series_to_add (list): list of pd.Series to add to the dataframe
+            type_data (str): dataset type (validation, test, ...)
+            model_logger (ModelLogger): custom class to log metrics in ML Flow
         Raises:
-            TypeError: si l'objet series_to_add n'est pas du type list, et composé d'éléments de type pd.Series
+            TypeError: if the series_to_add object is not of type list, and has pd.Series type elements
         Returns:
-            pd.DataFrame: la df qui contient les statistiques
+            pd.DataFrame:  the df which contains the statistics
         '''
         if series_to_add is not None:
             if sum([1 if type(_) == pd.Series else 0 for _ in series_to_add]) != len(series_to_add):
@@ -283,4 +290,4 @@ class ModelAgregation(ModelClass):
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
-    logger.error("Ce script ne doit pas être exécuté, il s'agit d'un package.")
+    logger.error("This script is not stand alone but belongs to a package that has to be imported.")
