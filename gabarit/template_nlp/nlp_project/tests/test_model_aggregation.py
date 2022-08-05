@@ -421,12 +421,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         # With proba_argmax
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.save(json_data={'test': 8})
+        model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
-        self.assertEqual(configs['test'], 8)
+        self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
         self.assertTrue('date' in configs.keys())#
         self.assertTrue('package_version' in configs.keys())
@@ -448,12 +448,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         # With majority_vote
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.save(json_data={'test': 8})
+        model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
-        self.assertEqual(configs['test'], 8)
+        self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
         self.assertTrue('date' in configs.keys())
         self.assertTrue('package_version' in configs.keys())

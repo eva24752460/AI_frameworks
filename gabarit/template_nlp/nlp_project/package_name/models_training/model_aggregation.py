@@ -20,9 +20,10 @@
 # Classes :
 # - ModelAgregation -> model aggregation with ModelClass
 
-
-import logging
 import os
+import json
+import pickle
+import logging
 
 import numpy as np
 import pandas as pd
@@ -241,7 +242,7 @@ class ModelAggregation(ModelClass):
         else:
             return votes.index[0]
 
-    def save(self, json_data:dict=None) -> None:
+    def save(self, json_data: dict = None) -> None:
         '''Saves the model
 
         Kwargs:
@@ -256,21 +257,29 @@ class ModelAggregation(ModelClass):
 
         # One gives the agregated model responsible for the save
         json_data['agregated_model'] = os.path.split(self.model_dir)[-1]
-
-        # Save each model
-        list_models = []
-        for model in self.list_real_models:
-            model.save(json_data = json_data.copy())
-            list_models.append(os.path.split(model.model_dir)[-1])
-        self.list_models = list_models.copy()
-
-        json_data['list_models'] = list_models.copy()
+        json_data['nb_models'] = self.nb_models
 
         # Save
         list_real_models = self.list_real_models
         self.list_real_models = None
         super().save(json_data=json_data)
+        models_path = os.path.join(self.model_dir, f'list_models')
+        if not os.path.exists(models_path):
+            os.mkdir(models_path)
+
         self.list_real_models = list_real_models
+
+        # Save each model
+        list_models = []
+        for i, model in enumerate(self.list_real_models):
+            model.model_dir = os.path.join(models_path, str(i))
+            if not os.path.exists(model.model_dir):
+                os.mkdir(model.model_dir)
+            model.save(json_data=json_data.copy())
+            list_models.append(os.path.split(model.model_dir)[-1])
+        self.list_models = list_models.copy()
+
+        json_data['list_models'] = list_models.copy()
 
     @utils.trained_needed
     def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None) -> pd.Series:
@@ -307,6 +316,67 @@ class ModelAggregation(ModelClass):
                                             series_to_add=series_to_add,
                                             type_data=type_data,
                                             model_logger=model_logger)
+
+    def reload_from_standalone(self, model_dir: str, **kwargs) -> None:
+        '''Reloads a model aggregation from its configuration and "standalones" files
+            Reloads list model from "list_models" files
+
+        Args:
+            model_dir (str): Name of the folder containing the model (e.g. model_autres_2019_11_07-13_43_19)
+        Kwargs:
+            configuration_path (str): Path to configuration file
+            model_aggregation (str): Path to standalone model_aggregation
+        Raises:
+            ValueError: If configuration_path is None
+            ValueError: If model_aggregation_path is None
+            FileNotFoundError: If the object configuration_path is not an existing file
+            FileNotFoundError: If the object model_aggregation_path is not an existing file
+        '''
+        # Retrieve args
+        configuration_path = kwargs.get('configuration_path', None)
+        model_aggregation_path = kwargs.get('model_aggregation', None)
+
+        # Checks
+        if configuration_path is None:
+            raise ValueError("The argument configuration_path can't be None")
+        if model_aggregation_path is None:
+            raise ValueError("The argument sklearn_pipeline_path can't be None")
+        if not os.path.exists(configuration_path):
+            raise FileNotFoundError(f"The file {configuration_path} does not exist")
+        if not os.path.exists(model_aggregation_path):
+            raise FileNotFoundError(f"The file {model_aggregation_path} does not exist")
+
+        # Load confs
+        with open(configuration_path, 'r', encoding='utf-8') as f:
+            configs = json.load(f)
+        # Can't set int as keys in json, so need to cast it after reloading
+        # dict_classes keys are always ints
+        if 'dict_classes' in configs.keys():
+            configs['dict_classes'] = {int(k): v for k, v in configs['dict_classes'].items()}
+        elif 'list_classes' in configs.keys():
+            configs['dict_classes'] = {i: col for i, col in enumerate(configs['list_classes'])}
+
+        # Set class vars
+        # self.model_name = # Keep the created name
+        # self.model_dir = # Keep the created folder
+        self.nb_fit = configs.get('nb_fit', 1)  # Consider one unique fit by default
+        self.trained = configs.get('trained', True)  # Consider trained by default
+        # Try to read the following attributes from configs and, if absent, keep the current one
+        for attribute in ['x_col', 'y_col',
+                          'list_classes', 'dict_classes', 'multi_label', 'level_save',
+                          'multiclass_strategy', 'agregated_model', 'nb_models']:
+            setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
+
+        # Reload
+        with open(model_aggregation_path, 'rb') as f:
+            self = pickle.load(f)
+
+        # Reload list_real_models
+        list_real_models = []
+        for i in range(self.nb_models):
+            model_dir = os.path.join(self.model_dir, f'list_models', str(i))
+            model, _ = utils_models.load_model(model_dir=model_dir, is_path=True)
+            list_real_models.append(model)
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
