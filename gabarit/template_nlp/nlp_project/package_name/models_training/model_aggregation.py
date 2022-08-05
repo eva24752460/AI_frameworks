@@ -48,9 +48,13 @@ class ModelAggregation(ModelClass):
             TypeError : if the aggregation_function object is not of type str or Callable
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
+            ValueError : if use multi-labels
         '''
         # Init.
         super().__init__(**kwargs)
+
+        if self.multi_label:
+            raise ValueError("Model aggregation does not support multi-labels")
 
         # Get logger (must be done after super init)
         self.logger = logging.getLogger(__name__)
@@ -124,7 +128,7 @@ class ModelAggregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba:bool=None, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -132,16 +136,17 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples]
         '''
+        return_proba = self.using_proba if return_proba is None else return_proba
 
         # We decide whether to rely on each model's probas or their prediction
-        if self.using_proba:
-            proba = self._get_probas(x_test,**kwargs)
-            return self.aggregation_function(proba)
+        if return_proba:
+            probas = self._get_probas(x_test,**kwargs)
+            return self.aggregation_function(probas)
         else:
             dict_predict = self._get_predictions(x_test,**kwargs)
             df = pd.DataFrame(dict_predict)
             # self.aggregation_function is the function that actually does the aggregation work
-            df['prediction_finale'] = df.apply(lambda x:self.aggregation_function(x),axis=1)
+            df['prediction_finale'] = df.apply(lambda x:self.aggregation_function(x), axis=1)
             return df['prediction_finale'].values
 
     @utils.data_agnostic_str_to_list
@@ -156,9 +161,6 @@ class ModelAggregation(ModelClass):
         Raises:
             AttributeError: if not self.using_proba
         '''
-        if not self.using_proba:
-            raise AttributeError(f"_get_probas is not compatible with using_proba=False")
-
         self._get_real_models()
         # Predict for each model
         list_predict_proba = []
@@ -175,12 +177,7 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (dict): dictionary in which the values are lists of underlying model predictions
-        Raises:
-            AttributeError: if self.using_proba
         '''
-        if self.using_proba:
-            raise AttributeError(f"_get_predictions is not compatible with using_proba=False")
-
         self._get_real_models()
         dict_predict = {}
         # Predict for each model
@@ -197,18 +194,13 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (np.array): array of shape = [n_samples, n_classes]
-        Raises:
-            AttributeError: if not self.using_proba
         '''
-        if not self.using_proba:
-            raise AttributeError(f"predict_proba is not compatible with using_proba=False")
-
         list_predict_proba = self._get_probas(x_test,**kwargs)
         # The probas of all models are averaged.
         return sum(list_predict_proba)/len(self.list_models)
 
     def proba_argmax(self, proba:List) -> np.array:
-        '''We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
+        '''Aggregation_function: We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
 
         Args:
             (List): list of the probability of each model
@@ -226,15 +218,15 @@ class ModelAggregation(ModelClass):
         get_class_v = np.vectorize(get_class)
         return get_class_v(np.argmax(proba_average,axis=1))
 
-    def majority_vote(self, predictions) -> pd.Series:
-        '''A majority voting system of multiple predictions is used.
+    def majority_vote(self, predictions:pd.Series) -> pd.Series:
+        '''Aggregation_function: A majority voting system of multiple predictions is used.
         In the case of a tie, we use the first model's prediction (even if it is not in the first votes)
 
         Args:
             (pd.Series) : the Series containing the predictions of the various models
-            (pd.Series) : series in which the values are the lists of underlying model predictions
+                          series in which the values are the lists of underlying model predictions
         Return:
-            (pd.Series) :
+            (pd.Series) : majority_vote
         Raises:
             AttributeError: if self.using_proba
         '''
@@ -249,7 +241,7 @@ class ModelAggregation(ModelClass):
         else:
             return votes.index[0]
 
-    def save(self, json_data: dict = None) -> None:
+    def save(self, json_data:dict=None) -> None:
         '''Saves the model
 
         Kwargs:
