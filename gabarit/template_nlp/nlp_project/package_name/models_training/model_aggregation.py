@@ -44,7 +44,6 @@ class ModelAggregation(ModelClass):
             list_models (list) : list of model to be aggregated
             aggregation_function (Callable or str) : aggregation function used
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
-                                useless if aggregation_function is a str
         Raises:
             TypeError : if the aggregation_function object is not of type str or Callable
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
@@ -71,7 +70,7 @@ class ModelAggregation(ModelClass):
             if using_proba is None:
                 self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
             elif using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
-                raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({self.using_proba})")
+                raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({using_proba})")
             else:
                 self.using_proba = using_proba
 
@@ -79,10 +78,8 @@ class ModelAggregation(ModelClass):
         self.aggregation_function = aggregation_function
         self.list_models = list_models
         self.list_real_models = None
-        self.list_models_names = None
         if list_models is not None:
             self._get_real_models()
-        print('init-----------------------------')
 
     def _get_real_models(self) -> None:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
@@ -105,20 +102,14 @@ class ModelAggregation(ModelClass):
         Args:
             x_train (?): Array-like, shape = [n_samples]
             y_train (?): Array-like, shape = [n_samples]
-        Raises:
-            RuntimeError: If the model is already fitted
         '''
-        if self.trained:
-            self.logger.error("The model cannot be refitted.")
-            self.logger.error("fit with the new model")
-            raise RuntimeError("The model cannot be refitted.")
 
         self._get_real_models()
 
         # Fit each model
-        list_models = []
         for model in self.list_real_models:
-            model.fit(x_train, y_train, **kwargs)
+            if not model.trained:
+                model.fit(x_train, y_train, **kwargs)
 
         #Set trained
         self.trained = True
@@ -131,7 +122,7 @@ class ModelAggregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, return_proba:bool = None, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba: bool = None, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -141,15 +132,18 @@ class ModelAggregation(ModelClass):
         '''
         return_proba = self.using_proba if return_proba is None else return_proba
 
+        # self.aggregation_function is the name(str) of the aggregation_function
+        # aggregation_function is the function that actually does the aggregation work
+        aggregation_function = getattr(self, self.aggregation_function)
+
         # We decide whether to rely on each model's probas or their prediction
         if return_proba:
             probas = self._get_probas(x_test,**kwargs)
-            return self.aggregation_function(probas)
+            return aggregation_function(probas)
         else:
-            dict_predict = self._get_predictions(x_test,**kwargs)
+            dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
-            # self.aggregation_function is the function that actually does the aggregation work
-            df['prediction_finale'] = df.apply(lambda x:self.aggregation_function(x), axis=1)
+            df['prediction_finale'] = df.apply(lambda x: aggregation_function(x),axis=1)
             return df['prediction_finale'].values
 
     @utils.data_agnostic_str_to_list
@@ -161,8 +155,6 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (list): array of shape = [n_samples, n_features]
-        Raises:
-            AttributeError: if not self.using_proba
         '''
         self._get_real_models()
         # Predict for each model
@@ -239,7 +231,7 @@ class ModelAggregation(ModelClass):
             self.logger.warning("majority_vote is not compatible with the multi-label")
 
         votes = predictions.value_counts().sort_values(ascending=False)
-        if len(votes)>1 and votes.iloc[0]==votes.iloc[1]:
+        if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
             return predictions[0]
         else:
             return votes.index[0]
@@ -256,24 +248,13 @@ class ModelAggregation(ModelClass):
             raise ValueError('json_data must be a type dict')
 
         # Save each model
-        models_path = os.path.join(self.model_dir, f'list_models_aggregation')
-        if not os.path.exists(models_path):
-            os.mkdir(models_path)
         list_models = []
-        list_models_names = []
-        for i, model in enumerate(self.list_real_models):
-            model.model_dir = os.path.join(models_path, model.model_name)
-            # model.model_dir = os.path.join(models_path)
-            if not os.path.exists(model.model_dir):
-                os.mkdir(model.model_dir)
-            model.save(json_data=json_data.copy())
+        for model in self.list_real_models:
+            model.save(json_data = json_data.copy())
             list_models.append(os.path.split(model.model_dir)[-1])
-            # list_models.append(model.model_dir)
-            list_models_names.append(model.model_name)
         self.list_models = list_models.copy()
 
         json_data['list_models'] = list_models.copy()
-        json_data['list_models_names'] = list_models_names.copy()
         json_data['aggregation_function'] = self.aggregation_function
         json_data['using_proba'] = self.using_proba
 
@@ -284,7 +265,7 @@ class ModelAggregation(ModelClass):
         self.list_real_models = list_real_models
 
     @utils.trained_needed
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger:ModelLogger = None) -> pd.Series:
+    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger: ModelLogger = None) -> pd.Series:
         '''Function to obtain and save model metrics
 
         Args:
@@ -334,17 +315,12 @@ class ModelAggregation(ModelClass):
         '''
         # Retrieve args
         configuration_path = kwargs.get('configuration_path', None)
-        model_aggregation_path = kwargs.get('model_aggregation_path', None)
 
         # Checks
         if configuration_path is None:
             raise ValueError("The argument configuration_path can't be None")
-        if model_aggregation_path is None:
-            raise ValueError("The argument model_aggregation can't be None")
         if not os.path.exists(configuration_path):
             raise FileNotFoundError(f"The file {configuration_path} does not exist")
-        if not os.path.exists(model_aggregation_path):
-            raise FileNotFoundError(f"The file {model_aggregation_path} does not exist")
 
         # Load confs
         with open(configuration_path, 'r', encoding='utf-8') as f:
@@ -364,28 +340,10 @@ class ModelAggregation(ModelClass):
         # Try to read the following attributes from configs and, if absent, keep the current one
         for attribute in ['x_col', 'y_col',
                           'list_classes', 'dict_classes', 'multi_label', 'level_save',
-                          'list_models', 'list_models_names', 'aggregation_function', 'using_proba']:
+                          'list_models', 'aggregation_function', 'using_proba']:
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
 
-
-        print('---- agg function load list_model:', self.list_models)
-        # self._get_real_models()
-        print('---- agg function load list_real_model:', self.list_real_models)
-
-        # # Reload
-        # with open(model_aggregation_path, 'rb') as f:
-        #     self = pickle.load(f)
-
-        # Reload list_real_models
-        list_real_models = []
-        for model_name in self.list_models_names:
-            model_dir = os.path.join(self.model_dir, f'list_models_aggregation', model_name)
-            model, _ = utils_models.load_model(model_dir=model_dir, is_path=True)
-            list_real_models.append(model)
-        self.list_real_models = list_real_models
-
-        # self.list_real_models = '111111111111111111'
-        # print('---- agg function load list_real_model:', self.list_real_models)
+        self._get_real_models()
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
