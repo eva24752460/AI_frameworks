@@ -37,7 +37,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List, aggregation_function='majority_vote', using_proba:bool=None, **kwargs) -> None:
+    def __init__(self, list_models: List = None, aggregation_function:str = 'majority_vote', using_proba:bool = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
@@ -80,7 +80,9 @@ class ModelAggregation(ModelClass):
         # Manage model
         self.list_models = list_models
         self.list_real_models = None
-        self._get_real_models()
+        if list_models is not None:
+            self._get_real_models()
+        self.nb_models = len(self.list_real_models) if self.list_real_models is not None else 0
 
     def _get_real_models(self) -> None:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
@@ -122,14 +124,14 @@ class ModelAggregation(ModelClass):
         self.trained = True
         self.nb_fit += 1
 
-        # Set list_classes based on the list_classes of the first modèle
+        # Set list_classes based on the list_classes of the first model
         self.list_classes = self.list_real_models[0].list_classes.copy()
         # Set dict_classes based on list classes
         self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, return_proba:bool=None, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba:bool = None, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -242,7 +244,7 @@ class ModelAggregation(ModelClass):
         else:
             return votes.index[0]
 
-    def save(self, json_data: dict = None) -> None:
+    def save(self, json_data: dict = {}) -> None:
         '''Saves the model
 
         Kwargs:
@@ -252,18 +254,12 @@ class ModelAggregation(ModelClass):
         '''
         if type(json_data) is not dict:
             raise ValueError('json_data must be a type dict')
-        if json_data is None:
-            json_data = {}
-
-        # One gives the agregated model responsible for the save
-        json_data['agregated_model'] = os.path.split(self.model_dir)[-1]
-        json_data['nb_models'] = self.nb_models
 
         # Save
         list_real_models = self.list_real_models
         self.list_real_models = None
         super().save(json_data=json_data)
-        models_path = os.path.join(self.model_dir, f'list_models')
+        models_path = os.path.join(self.model_dir, f'list_models_aggregation')
         if not os.path.exists(models_path):
             os.mkdir(models_path)
 
@@ -280,9 +276,10 @@ class ModelAggregation(ModelClass):
         self.list_models = list_models.copy()
 
         json_data['list_models'] = list_models.copy()
+        json_data['nb_models'] = self.nb_models
 
     @utils.trained_needed
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger=None) -> pd.Series:
+    def get_and_save_metrics(self, y_true, y_pred, x = None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger = None) -> pd.Series:
         '''Function to obtain and save model metrics
 
         Args:
@@ -328,19 +325,17 @@ class ModelAggregation(ModelClass):
             model_aggregation (str): Path to standalone model_aggregation
         Raises:
             ValueError: If configuration_path is None
-            ValueError: If model_aggregation_path is None
             FileNotFoundError: If the object configuration_path is not an existing file
-            FileNotFoundError: If the object model_aggregation_path is not an existing file
         '''
         # Retrieve args
         configuration_path = kwargs.get('configuration_path', None)
-        model_aggregation_path = kwargs.get('model_aggregation', None)
+        model_aggregation_path = kwargs.get('model_aggregation_path', None)
 
         # Checks
         if configuration_path is None:
             raise ValueError("The argument configuration_path can't be None")
         if model_aggregation_path is None:
-            raise ValueError("The argument sklearn_pipeline_path can't be None")
+            raise ValueError("The argument model_aggregation can't be None")
         if not os.path.exists(configuration_path):
             raise FileNotFoundError(f"The file {configuration_path} does not exist")
         if not os.path.exists(model_aggregation_path):
@@ -364,7 +359,7 @@ class ModelAggregation(ModelClass):
         # Try to read the following attributes from configs and, if absent, keep the current one
         for attribute in ['x_col', 'y_col',
                           'list_classes', 'dict_classes', 'multi_label', 'level_save',
-                          'multiclass_strategy', 'agregated_model', 'nb_models']:
+                          'nb_models', 'list_models']:
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
 
         # Reload
@@ -374,7 +369,7 @@ class ModelAggregation(ModelClass):
         # Reload list_real_models
         list_real_models = []
         for i in range(self.nb_models):
-            model_dir = os.path.join(self.model_dir, f'list_models', str(i))
+            model_dir = os.path.join(self.model_dir, f'list_models_aggregation', str(i))
             model, _ = utils_models.load_model(model_dir=model_dir, is_path=True)
             list_real_models.append(model)
 

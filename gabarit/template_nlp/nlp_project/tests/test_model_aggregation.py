@@ -239,6 +239,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         probas_svm = model_svm.predict_proba(x_train)
         self.assertEqual(probas[0].all(), probas_svm.all())
         remove_dir(model_dir)
+        remove_dir(model_svm.model_dir)
 
         # model not using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -253,6 +254,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         probas_svm = model_svm.predict_proba(x_train)
         self.assertEqual(probas[0].all(), probas_svm.all())
         remove_dir(model_dir)
+        remove_dir(model_svm.model_dir)
 
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
@@ -285,6 +287,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         preds_svm = model_svm.predict(x_train)
         self.assertEqual(preds[0].all(), preds_svm.all())
         remove_dir(model_dir)
+        remove_dir(model_svm.model_dir)
 
         # model using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -298,6 +301,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         preds_svm = model_svm.predict(x_train)
         self.assertEqual(preds[0].all(), preds_svm.all())
         remove_dir(model_dir)
+        remove_dir(model_svm.model_dir)
 
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
@@ -376,6 +380,7 @@ class ModelTfidfaggregation(unittest.TestCase):
             model_new = ModelAggregation(list_models=list_models)
             model_new.proba_argmax(probas_list)
         remove_dir(model_dir)
+        remove_dir(model_new.model_dir)
 
     def test09_model_aggregation_majority_vote(self):
         '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.majority_vote'''
