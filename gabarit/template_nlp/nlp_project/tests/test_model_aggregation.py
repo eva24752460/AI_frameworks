@@ -535,6 +535,105 @@ class ModelTfidfaggregation(unittest.TestCase):
             df_metrics = model.get_and_save_metrics(y_true, y_pred)
         remove_dir(model_dir)
 
+    def test12_model_aggregation_reload_from_standalone(self):
+        '''Test of the method tfidfDemo.models_training.model_aggregation.ModelAaggregation.reload_from_standalone'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        ############################################
+        # mono_label & with function majority_vote
+        ############################################
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+
+        # Create model
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        model.fit(x_train, y_train_mono)
+        model.save()
+
+        # Reload
+        conf_path = os.path.join(model.model_dir, "configurations.json")
+        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model_new = ModelAggregation()
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        print('  ....> test model_new list_models :', model_new.list_real_models)
+
+        # Test
+        self.assertEqual(model.model_name, model_new.model_name)
+        self.assertEqual(model.trained, model_new.trained)
+        self.assertEqual(model.nb_fit, model_new.nb_fit)
+        self.assertEqual(model.x_col, model_new.x_col)
+        self.assertEqual(model.y_col, model_new.y_col)
+        self.assertEqual(model.list_classes, model_new.list_classes)
+        self.assertEqual(model.dict_classes, model_new.dict_classes)
+        self.assertEqual(model.multi_label, model_new.multi_label)
+        self.assertEqual(model.level_save, model_new.level_save)
+
+
+        self.assertEqual(model.list_models, model_new.list_models)
+        self.assertEqual(model.list_real_models, model_new.list_real_models)
+        self.assertEqual(model.list_models_names, model_new.list_models_names)
+        self.assertEqual(model.using_proba, model_new.using_proba)
+
+        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        remove_dir(model_dir)
+        remove_dir(model_new.model_dir)
+
+        ############################################
+        # mono_label & with function proba_argmax
+        ############################################
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+
+        # Create model
+        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_train_mono)
+        model.save()
+
+        # Reload
+        conf_path = os.path.join(model.model_dir, "configurations.json")
+        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        model_new = ModelAggregation()
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+
+        # Test
+        self.assertEqual(model.model_name, model_new.model_name)
+        self.assertEqual(model.trained, model_new.trained)
+        self.assertEqual(model.nb_fit, model_new.nb_fit)
+        self.assertEqual(model.x_col, model_new.x_col)
+        self.assertEqual(model.y_col, model_new.y_col)
+        self.assertEqual(model.list_classes, model_new.list_classes)
+        self.assertEqual(model.dict_classes, model_new.dict_classes)
+        self.assertEqual(model.multi_label, model_new.multi_label)
+        self.assertEqual(model.level_save, model_new.level_save)
+        self.assertEqual(model.list_models, model_new.list_models)
+        self.assertEqual(model.list_real_models, model_new.list_real_models)
+        self.assertEqual(model.list_models_names, model_new.list_models_names)
+        self.assertEqual(model.using_proba, model_new.using_proba)
+        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        remove_dir(model_dir)
+        remove_dir(model_new.model_dir)
+
+
+        ############################################
+        # Errors
+        ############################################
+
+        with self.assertRaises(FileNotFoundError):
+            new_model = ModelAggregation()
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', model_aggregation_path=model_aggregation_path)
+        with self.assertRaises(FileNotFoundError):
+            new_model = ModelAggregation()
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path='toto.pkl')
+
 # Perform tests
 if __name__ == '__main__':
     # Start tests
