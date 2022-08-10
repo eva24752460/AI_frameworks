@@ -18,7 +18,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 # Classes :
-# - ModelAgregation -> model aggregation with ModelClass
+# - ModelAggregation -> model aggregation with ModelClass
 
 import os
 import json
@@ -37,7 +37,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List = None, aggregation_function: str = 'majority_vote', using_proba: bool = None, **kwargs) -> None:
+    def __init__(self, list_models: List = None, aggregation_function = 'majority_vote', using_proba: bool = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
@@ -49,6 +49,9 @@ class ModelAggregation(ModelClass):
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
             ValueError : if use multi-labels
+            ValueError : if aggregation_function object is Callable and using_proba is None
+            ValueError : if aggregation_function don't return np.ndarray type when using_proba = True
+            ValueError : if aggregation_function don't return pd.series type when using_proba = False
         '''
         # Init.
         super().__init__(**kwargs)
@@ -64,7 +67,19 @@ class ModelAggregation(ModelClass):
                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
         if not isinstance(aggregation_function,(Callable, str)):
             raise TypeError('The aggregation_function objects must be of the callable or str types.')
-        if isinstance(aggregation_function,str):
+        if isinstance(aggregation_function, Callable):
+            if using_proba is None:
+                raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
+            elif using_proba:
+                if not isinstance(aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]), np.ndarray) or aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]).shape != (1,):
+                    raise ValueError(f"if using_proba, the aggregation_function must take a list of of each model's probability as an argument list shape = [array([n_samples, n_features]), n_model], and return an array with shape = [n_samples]")
+            elif not using_proba:
+                df = pd.DataFrame([[0, 1], [1, 1]])
+                output_aggregation_fuction = df.apply(lambda x: aggregation_function(x), axis=1)
+                if not isinstance(output_aggregation_fuction[0], np.int64) or output_aggregation_fuction.shape != (2,):
+                    raise ValueError(f"if not using_proba, the aggregation_function must take a list of of each model's prediction as an argument pd.series shape = [n_test, n_model], and return an pd.Series shape = [n_test]")
+            self.using_proba = using_proba
+        if isinstance(aggregation_function, str):
             if aggregation_function not in dict_aggregation_function.keys():
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
             if using_proba is None:
@@ -73,6 +88,7 @@ class ModelAggregation(ModelClass):
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({using_proba})")
             else:
                 self.using_proba = using_proba
+            aggregation_function = dict_aggregation_function[aggregation_function]['function']
 
         # Manage model
         self.aggregation_function = aggregation_function
@@ -87,11 +103,13 @@ class ModelAggregation(ModelClass):
         if self.list_real_models is None:
             list_real_models = []
             #Get the real model or keep it
-            for model in self.list_models:
+            for i in range(len(self.list_models)):
+                model = self.list_models[i]
                 if isinstance(model,str):
                     real_model, _ = utils_models.load_model(model)
                 else:
                     real_model = model
+                    self.list_models[i] = os.path.split(model.model_dir)[-1]
                 list_real_models.append(real_model)
             self.list_real_models = list_real_models
 
@@ -103,9 +121,6 @@ class ModelAggregation(ModelClass):
             x_train (?): Array-like, shape = [n_samples]
             y_train (?): Array-like, shape = [n_samples]
         '''
-
-        self._get_real_models()
-
         # Fit each model
         for model in self.list_real_models:
             if not model.trained:
@@ -132,18 +147,15 @@ class ModelAggregation(ModelClass):
         '''
         return_proba = self.using_proba if return_proba is None else return_proba
 
-        # self.aggregation_function is the name(str) of the aggregation_function
-        # aggregation_function is the function that actually does the aggregation work
-        aggregation_function = getattr(self, self.aggregation_function)
-
         # We decide whether to rely on each model's probas or their prediction
         if return_proba:
             probas = self._get_probas(x_test,**kwargs)
-            return aggregation_function(probas)
+            return self.aggregation_function(probas)
         else:
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
-            df['prediction_finale'] = df.apply(lambda x: aggregation_function(x),axis=1)
+            # aggregation_function is the function that actually does the aggregation work
+            df['prediction_finale'] = df.apply(lambda x: self.aggregation_function(x), axis=1)
             return df['prediction_finale'].values
 
     @utils.data_agnostic_str_to_list
@@ -156,7 +168,6 @@ class ModelAggregation(ModelClass):
         Returns:
             (list): array of shape = [n_samples, n_features]
         '''
-        self._get_real_models()
         # Predict for each model
         list_predict_proba = []
         for model in self.list_real_models:
@@ -173,11 +184,10 @@ class ModelAggregation(ModelClass):
         Returns:
             (dict): dictionary in which the values are lists of underlying model predictions
         '''
-        self._get_real_models()
         dict_predict = {}
         # Predict for each model
         for i, model in enumerate(self.list_real_models):
-            dict_predict[i] = model.predict(x_test,**kwargs)
+            dict_predict[i] = model.predict(x_test, **kwargs)
         return dict_predict
 
     @utils.data_agnostic_str_to_list
@@ -190,7 +200,7 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples, n_classes]
         '''
-        list_predict_proba = self._get_probas(x_test,**kwargs)
+        list_predict_proba = self._get_probas(x_test, **kwargs)
         # The probas of all models are averaged.
         return sum(list_predict_proba)/len(self.list_models)
 
@@ -211,17 +221,17 @@ class ModelAggregation(ModelClass):
         def get_class(x):
             return self.list_classes[x]
         get_class_v = np.vectorize(get_class)
-        return get_class_v(np.argmax(proba_average,axis=1))
+        return get_class_v(np.argmax(proba_average, axis=1))
 
-    def majority_vote(self, predictions:pd.Series) -> pd.Series:
+    def majority_vote(self, predictions:pd.Series) -> list:
         '''Aggregation_function: A majority voting system of multiple predictions is used.
         In the case of a tie, we use the first model's prediction (even if it is not in the first votes)
 
         Args:
-            (pd.Series) : the Series containing the predictions of the various models
+            (pd.Series) : the Series containing the predictions of each models
                           series in which the values are the lists of underlying model predictions
         Return:
-            (pd.Series) : majority_vote
+            (list) : majority_vote
         Raises:
             AttributeError: if self.using_proba
         '''
@@ -255,8 +265,16 @@ class ModelAggregation(ModelClass):
         self.list_models = list_models.copy()
 
         json_data['list_models'] = list_models.copy()
-        json_data['aggregation_function'] = self.aggregation_function
         json_data['using_proba'] = self.using_proba
+
+        # Save aggregation_function if not None & level_save > LOW
+        if (self.aggregation_function is not None) and (self.level_save in ['MEDIUM', 'HIGH']):
+            # Manage paths
+            aggregation_function_path = os.path.join(self.model_dir, "aggregation_function.pkl")
+            # Save as pickle
+            with open(aggregation_function_path, 'wb') as f:
+                # TODO: use dill to get rid of  "can't pickle ..." errors
+                pickle.dump(self.aggregation_function, f)
 
         # Save
         list_real_models = self.list_real_models
@@ -311,16 +329,23 @@ class ModelAggregation(ModelClass):
             model_aggregation (str): Path to standalone model_aggregation
         Raises:
             ValueError: If configuration_path is None
+            ValueError: If aggregation_function_path is None
             FileNotFoundError: If the object configuration_path is not an existing file
+            FileNotFoundError: If the object aggregation_function_path is not an existing file
         '''
         # Retrieve args
         configuration_path = kwargs.get('configuration_path', None)
+        aggregation_function_path = kwargs.get('aggregation_function_path', None)
 
         # Checks
         if configuration_path is None:
             raise ValueError("The argument configuration_path can't be None")
+        if aggregation_function_path is None:
+            raise ValueError("The argument aggregation_function_path can't be None")
         if not os.path.exists(configuration_path):
             raise FileNotFoundError(f"The file {configuration_path} does not exist")
+        if not os.path.exists(aggregation_function_path):
+            raise FileNotFoundError(f"The file {aggregation_function_path} does not exist")
 
         # Load confs
         with open(configuration_path, 'r', encoding='utf-8') as f:
@@ -332,6 +357,10 @@ class ModelAggregation(ModelClass):
         elif 'list_classes' in configs.keys():
             configs['dict_classes'] = {i: col for i, col in enumerate(configs['list_classes'])}
 
+        # Reload aggregation_function_path
+        with open(aggregation_function_path, 'rb') as f:
+            self.aggregation_function = pickle.load(f)
+
         # Set class vars
         # self.model_name = # Keep the created name
         # self.model_dir = # Keep the created folder
@@ -340,7 +369,7 @@ class ModelAggregation(ModelClass):
         # Try to read the following attributes from configs and, if absent, keep the current one
         for attribute in ['x_col', 'y_col',
                           'list_classes', 'dict_classes', 'multi_label', 'level_save',
-                          'list_models', 'aggregation_function', 'using_proba']:
+                          'list_models', 'using_proba']:
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
 
         self._get_real_models()
