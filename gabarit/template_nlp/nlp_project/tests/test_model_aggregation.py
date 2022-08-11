@@ -400,10 +400,14 @@ class ModelTfidfaggregation(unittest.TestCase):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train)
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
-        preds = model.predict('test')
-        self.assertEqual(preds, model.predict(['test'])[0])
+        preds = model.predict('ceci est un test', return_proba=False)
+        self.assertEqual(preds, 0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -413,14 +417,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         function_without_proba = ModelAggregation().majority_vote
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train)
-        self.assertEqual(preds.shape, (len(x_train),))
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
-        preds = model.predict('ceci est un test')
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
         self.assertEqual(preds, 0)
-        preds = model.predict('ceci est un test', teturn_proba=True)
-        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -438,17 +442,18 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train)
-        self.assertEqual(preds.shape, (len(x_train),))
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
-        preds = model.predict('ceci est un test')
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
         self.assertEqual(preds, 0)
-        preds = model.predict('ceci est un test', teturn_proba=True)
-        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
+
 
         # list_models = [model_name, model_name]
         svm = ModelTfidfSvm()
@@ -456,14 +461,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train)
-        self.assertEqual(preds.shape, (len(x_train),))
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
-        preds = model.predict('ceci est un test')
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
         self.assertEqual(preds, 0)
-        preds = model.predict('ceci est un test', teturn_proba=True)
-        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -473,14 +478,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train)
-        self.assertEqual(preds.shape, (len(x_train),))
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
-        preds = model.predict('ceci est un test')
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
         self.assertEqual(preds, 0)
-        preds = model.predict('ceci est un test', teturn_proba=True)
-        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -493,10 +498,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        proba = model.predict(x_train)
-        self.assertEqual(proba.shape, (len(x_train),))
-        proba = model.predict('test')
-        self.assertEqual([proba], model.predict(['test']))
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
+        self.assertEqual(preds, 0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -507,10 +516,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        proba = model.predict(x_train)
-        self.assertEqual(proba.shape, (len(x_train),))
-        proba = model.predict('test')
-        self.assertEqual([proba], model.predict(['test']))
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
+        self.assertEqual(preds, 0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -520,10 +533,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        proba = model.predict(x_train)
-        self.assertEqual(proba.shape, (len(x_train),))
-        proba = model.predict('test')
-        self.assertEqual([proba], model.predict(['test']))
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertAlmostEqual(preds.sum(), len(x_train))
+
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict('ceci est un test', return_proba=False)
+        self.assertEqual(preds, 0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
