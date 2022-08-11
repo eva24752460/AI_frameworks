@@ -15,6 +15,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Libs unittest
+from types import new_class
 import unittest
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -391,6 +392,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
+        n_classes = 3
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -413,8 +415,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train)
         self.assertEqual(preds.shape, (len(x_train),))
-        preds = model.predict('test')
-        self.assertEqual(preds, model.predict(['test'])[0])
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        preds = model.predict('ceci est un test')
+        self.assertEqual(preds, 0)
+        preds = model.predict('ceci est un test', teturn_proba=True)
+        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -426,6 +432,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
+        n_classes = 3
 
         # list_models = [model, model]
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -433,8 +440,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train)
         self.assertEqual(preds.shape, (len(x_train),))
-        preds = model.predict('test')
-        self.assertEqual(preds, model.predict(['test'])[0])
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        preds = model.predict('ceci est un test')
+        self.assertEqual(preds, 0)
+        preds = model.predict('ceci est un test', teturn_proba=True)
+        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -447,8 +458,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train)
         self.assertEqual(preds.shape, (len(x_train),))
-        preds = model.predict('test')
-        self.assertEqual(preds, model.predict(['test'])[0])
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        preds = model.predict('ceci est un test')
+        self.assertEqual(preds, 0)
+        preds = model.predict('ceci est un test', teturn_proba=True)
+        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -460,8 +475,12 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train)
         self.assertEqual(preds.shape, (len(x_train),))
-        preds = model.predict('test')
-        self.assertEqual(preds, model.predict(['test'])[0])
+        preds = model.predict(x_train, return_proba=True)
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
+        preds = model.predict('ceci est un test')
+        self.assertEqual(preds, 0)
+        preds = model.predict('ceci est un test', teturn_proba=True)
+        self.assertEqual(preds,0)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -534,15 +553,6 @@ class ModelTfidfaggregation(unittest.TestCase):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
             model = ModelAggregation(model_dir=model_dir, list_models=list_models)
             model.predict_proba('test')
-        remove_dir(model_dir)
-        # The model return_proba must be comtable with the aggregation_function
-        with self.assertRaises(ValueError):
-            x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-            y_train_mono = np.array([0, 1, 0, 1, 2])
-            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-            model.fit(x_train, y_train_mono)
-            model.predict('test', return_proba=True)
         remove_dir(model_dir)
 
     def test05_model_aggregation_get_proba(self):

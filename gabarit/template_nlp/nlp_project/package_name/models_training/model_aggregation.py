@@ -150,23 +150,30 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (np.array): array of shape = [n_samples]
-        Raises:
-            ValueError : if the object aggregation_function is not adapte the value return_proba
         '''
         return_proba = self.using_proba if return_proba is None else return_proba
-        if self.using_proba != return_proba:
-            raise ValueError("the aggregation_function is not adapte the value return_proba=({return_proba})")
 
         # We decide whether to rely on each model's probas or their prediction
-        if return_proba:
+        if self.using_proba and return_proba:
             probas = self._get_probas(x_test,**kwargs)
             return self.aggregation_function(probas)
-        else:
+        elif not self.using_proba and not return_proba:
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
             # aggregation_function is the function that actually does the aggregation work
             df['prediction_finale'] = df.apply(lambda x: self.aggregation_function(x), axis=1)
             return df['prediction_finale'].values
+
+        # - /!\\ THE AGGREGATION FUNCTION CHOOSE DOES NOT RETURN PROBABILITIES, HERE WE SIMULATE PROBABILITIES EQUAL TO 0 OR 1 /!\\ -
+        elif not self.using_proba and return_proba:
+            dict_predict = self._get_predictions(x_test, **kwargs)
+            df = pd.DataFrame(dict_predict)
+            df['prediction_finale'] = df.apply(lambda x: self.aggregation_function(x), axis=1)
+            preds = df['prediction_finale'].values
+            transform_dict = {col: [0. if _ != i else 1. for _ in range(len(self.list_classes))] for i, col in enumerate(self.list_classes)}
+            probas = np.array([transform_dict[x] for x in preds])
+            return probas
+
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
