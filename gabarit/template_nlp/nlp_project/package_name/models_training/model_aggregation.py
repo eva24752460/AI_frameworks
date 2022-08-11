@@ -27,7 +27,8 @@ import dill as pickle
 
 import numpy as np
 import pandas as pd
-from typing import List, Callable
+from typing import List, Callable, Tuple
+
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
 from {{package_name}}.monitoring.model_logger import ModelLogger
@@ -98,26 +99,26 @@ class ModelAggregation(ModelClass):
 
         # Manage model
         self.aggregation_function = aggregation_function
-        self.list_models = list_models
-        self.list_real_models = None
-        if list_models is not None:
-            self._get_real_models()
+        self.list_models, self.list_real_models = self._sort_model_type(list_models)
 
-    def _get_real_models(self) -> None:
+    def _sort_model_type(self, list_models) -> Tuple(List, List):
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
         '''
-        if self.list_real_models is None:
+        if list_models is None:
+            return None, None
+        else:
             list_real_models = []
+            new_list_models = []
             #Get the real model or keep it
-            for i in range(len(self.list_models)):
-                model = self.list_models[i]
-                if isinstance(model,str):
+            for i, model in enumerate(list_models):
+                if isinstance(model, str):
                     real_model, _ = utils_models.load_model(model)
+                    new_list_model.append(model)
                 else:
                     real_model = model
-                    self.list_models[i] = os.path.split(model.model_dir)[-1]
+                    new_list_model.append(os.path.split(model.model_dir)[-1])
                 list_real_models.append(real_model)
-            self.list_real_models = list_real_models
+            return new_list_model, list_real_models
 
     def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
@@ -161,7 +162,7 @@ class ModelAggregation(ModelClass):
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
             # aggregation_function is the function that actually does the aggregation work
-            df['prediction_finale'] = df.apply(lambda x: self.aggregation_function(x), axis=1)
+            df['prediction_finale'] = df.apply(self.aggregation_function, axis=1)
             return df['prediction_finale'].values
 
     @utils.data_agnostic_str_to_list
@@ -261,16 +262,13 @@ class ModelAggregation(ModelClass):
             ValueError: if the json_data object is not of type dict
         '''
         if type(json_data) is not dict:
-            raise ValueError('json_data must be a type dict')
+            raise ValueError('json_data must be of type dict')
 
         # Save each model
-        list_models = []
         for model in self.list_real_models:
-            model.save(json_data = json_data.copy())
-            list_models.append(os.path.split(model.model_dir)[-1])
-        self.list_models = list_models.copy()
+            model.save()
 
-        json_data['list_models'] = list_models.copy()
+        json_data['list_models'] = self.list_models.copy()
         json_data['using_proba'] = self.using_proba
 
         aggregation_function = self.aggregation_function
@@ -336,7 +334,7 @@ class ModelAggregation(ModelClass):
             model_dir (str): Name of the folder containing the model (e.g. model_autres_2019_11_07-13_43_19)
         Kwargs:
             configuration_path (str): Path to configuration file
-            model_aggregation (str): Path to standalone model_aggregation
+            aggregation_function_path (str): Path to aggregation function
         Raises:
             ValueError: If configuration_path is None
             ValueError: If aggregation_function_path is None
@@ -382,7 +380,7 @@ class ModelAggregation(ModelClass):
                           'list_models', 'using_proba']:
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
 
-        self._get_real_models()
+        self.list_models, self.list_real_models = self._sort_model_type(self.list_models)
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
