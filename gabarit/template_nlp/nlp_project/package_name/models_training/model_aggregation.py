@@ -150,8 +150,12 @@ class ModelAggregation(ModelClass):
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
             (np.array): array of shape = [n_samples]
+        Raises:
+            ValueError : if the object aggregation_function is not adapte the value return_proba
         '''
         return_proba = self.using_proba if return_proba is None else return_proba
+        if self.using_proba != return_proba:
+            raise ValueError("the aggregation_function is not adapte the value return_proba=({return_proba})")
 
         # We decide whether to rely on each model's probas or their prediction
         if return_proba:

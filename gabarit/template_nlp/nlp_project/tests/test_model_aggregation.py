@@ -535,6 +535,15 @@ class ModelTfidfaggregation(unittest.TestCase):
             model = ModelAggregation(model_dir=model_dir, list_models=list_models)
             model.predict_proba('test')
         remove_dir(model_dir)
+        # The model return_proba must be comtable with the aggregation_function
+        with self.assertRaises(ValueError):
+            x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+            y_train_mono = np.array([0, 1, 0, 1, 2])
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+            model.fit(x_train, y_train_mono)
+            model.predict('test', return_proba=True)
+        remove_dir(model_dir)
 
     def test05_model_aggregation_get_proba(self):
         '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation._get_proba'''
