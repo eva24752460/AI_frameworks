@@ -22,8 +22,8 @@
 
 import os
 import json
-import pickle
 import logging
+import dill as pickle
 
 import numpy as np
 import pandas as pd
@@ -46,6 +46,7 @@ class ModelAggregation(ModelClass):
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
         Raises:
             TypeError : if the aggregation_function object is not of type str or Callable
+            TypeError : if the aggregation_function object is of type Lambda
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
             ValueError : if use multi-labels
@@ -65,11 +66,15 @@ class ModelAggregation(ModelClass):
         #Get the aggregation function
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
-        if not isinstance(aggregation_function,(Callable, str)):
+        if not isinstance(aggregation_function, (Callable, str)):
             raise TypeError('The aggregation_function objects must be of the callable or str types.')
-        if isinstance(aggregation_function, Callable):
+
+        if isinstance(aggregation_function, (Callable)):
+            if aggregation_function.__name__ == "<lambda>":
+                raise TypeError('For save aggregation_function in pkl, it cannot be lambda.')
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
+
             elif using_proba:
                 if not isinstance(aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]), np.ndarray) or aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]).shape != (1,):
                     raise ValueError(f"if using_proba, the aggregation_function must take a list of of each model's probability as an argument list shape = [array([n_samples, n_features]), n_model], and return an array with shape = [n_samples]")
@@ -79,6 +84,7 @@ class ModelAggregation(ModelClass):
                 if not isinstance(output_aggregation_fuction[0], np.int64) or output_aggregation_fuction.shape != (2,):
                     raise ValueError(f"if not using_proba, the aggregation_function must take a list of of each model's prediction as an argument pd.series shape = [n_test, n_model], and return an pd.Series shape = [n_test]")
             self.using_proba = using_proba
+
         if isinstance(aggregation_function, str):
             if aggregation_function not in dict_aggregation_function.keys():
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
@@ -267,6 +273,8 @@ class ModelAggregation(ModelClass):
         json_data['list_models'] = list_models.copy()
         json_data['using_proba'] = self.using_proba
 
+        aggregation_function = self.aggregation_function
+
         # Save aggregation_function if not None & level_save > LOW
         if (self.aggregation_function is not None) and (self.level_save in ['MEDIUM', 'HIGH']):
             # Manage paths
@@ -279,7 +287,9 @@ class ModelAggregation(ModelClass):
         # Save
         list_real_models = self.list_real_models
         self.list_real_models = None
+        delattr(self, "aggregation_function")
         super().save(json_data=json_data)
+        setattr(self, "aggregation_function", aggregation_function)
         self.list_real_models = list_real_models
 
     @utils.trained_needed

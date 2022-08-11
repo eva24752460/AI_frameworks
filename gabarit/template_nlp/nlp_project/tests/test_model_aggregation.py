@@ -79,7 +79,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # aggregation_function is Callable with using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         svm = list_models[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         self.assertEqual(model.model_dir, model_dir)
         self.assertEqual(model.list_models, list_models)
         self.assertEqual(model.list_real_models[0], svm)
@@ -152,6 +154,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         with self.assertRaises(TypeError):
             model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=1234)
         remove_dir(model_dir)
+        # if the aggregation_function object is type lambda
+        with self.assertRaises(TypeError):
+            model = ModelAggregation(model_dir=model_dir, list_models={}, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        remove_dir(model_dir)
 
         # if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
         with self.assertRaises(ValueError):
@@ -174,15 +180,21 @@ class ModelTfidfaggregation(unittest.TestCase):
         # if aggregation_function object is Callable and using_proba is None
         with self.assertRaises(ValueError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+            def argmax_sum(x):
+                return np.argmax(sum(x), axis=1)
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=None, aggregation_function=argmax_sum)
         remove_dir(model_dir)
 
         # if aggregation_function don't return np.ndarray type when using_proba = True   or   pd.series type when using_proba = False
         with self.assertRaises(ValueError):
-            model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=lambda x: "test", using_proba = True)
+            def test(x):
+                return "test"
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=test)
         remove_dir(model_dir)
         with self.assertRaises(ValueError):
-            model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=lambda x: ['x', 'x'], using_proba = False)
+            def test(x):
+                return ['x', 'x']
+            model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=test, using_proba = False)
         remove_dir(model_dir)
 
     def test02_model_aggregation_get_real_models(self):
@@ -237,7 +249,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         self.assertFalse(model.trained)
         self.assertEqual(model.nb_fit, 0)
         model.fit(x_train, y_train_mono)
@@ -380,7 +394,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train)
         self.assertEqual(preds.shape, (len(x_train),))
@@ -532,7 +548,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable and using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
         probas = model._get_probas(x_train)
         self.assertTrue(type(probas) == list)
@@ -673,7 +691,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
         probas = model.predict_proba(x_train)
         self.assertEqual(len(probas), len(x_train))
@@ -805,10 +825,13 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
@@ -837,8 +860,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         function_without_proba = ModelAggregation().majority_vote
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         model.save(json_data={'test': 10})
+
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
@@ -871,6 +896,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -902,6 +928,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -932,6 +959,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -965,6 +993,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -996,6 +1025,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -1026,6 +1056,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
         with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
@@ -1130,8 +1161,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Create model
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().aggregation_function
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
+        def argmax_sum(x):
+            return np.argmax(sum(x), axis=1)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
         model.save()
 
@@ -1154,7 +1186,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1175,12 +1208,13 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
         model.save()
+        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1195,7 +1229,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        df = pd.DataFrame([[0, 1], [1, 1]])
+        output_aggregation_fuction_model = df.apply(lambda x: model.aggregation_function(x), axis=1)
+        output_aggregation_fuction_model_new = df.apply(lambda x: model_new.aggregation_function(x), axis=1)
+        self.assertEqual(output_aggregation_fuction_model.all(), output_aggregation_fuction_model_new.all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1221,9 +1258,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1238,7 +1275,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        df = pd.DataFrame([[0, 1], [1, 1]])
+        output_aggregation_fuction_model = df.apply(lambda x: model.aggregation_function(x), axis=1)
+        output_aggregation_fuction_model_new = df.apply(lambda x: model_new.aggregation_function(x), axis=1)
+        self.assertEqual(output_aggregation_fuction_model.all(), output_aggregation_fuction_model_new.all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1263,9 +1303,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1280,7 +1320,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        df = pd.DataFrame([[0, 1], [1, 1]])
+        output_aggregation_fuction_model = df.apply(lambda x: model.aggregation_function(x), axis=1)
+        output_aggregation_fuction_model_new = df.apply(lambda x: model_new.aggregation_function(x), axis=1)
+        self.assertEqual(output_aggregation_fuction_model.all(), output_aggregation_fuction_model_new.all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1304,9 +1347,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1321,7 +1364,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1347,9 +1391,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1364,7 +1408,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1389,9 +1434,9 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
-        model_aggregation_path = os.path.join(model.model_dir, "model_aggregation.pkl")
+        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path=model_aggregation_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1406,7 +1451,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        self.assertEqual(model.aggregation_function, model_new.aggregation_function)
+        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1420,10 +1466,10 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', model_aggregation_path=model_aggregation_path)
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', aggregation_function_path=aggregation_function_path)
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, model_aggregation_path='toto.pkl')
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path='toto.pkl')
 
 # Perform tests
 if __name__ == '__main__':
