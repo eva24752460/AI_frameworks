@@ -101,6 +101,7 @@ class ModelAggregation(ModelClass):
         self.aggregation_function = aggregation_function
         self.list_models = list_models
         self.list_real_models = None
+        self.array_target = None
         if list_models is not None:
             self._sort_model_type()
 
@@ -143,6 +144,7 @@ class ModelAggregation(ModelClass):
         self.list_classes = self.list_real_models[0].list_classes.copy()
         # Set dict_classes based on list classes
         self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
+        self.array_target = np.array(y_train)
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -160,7 +162,10 @@ class ModelAggregation(ModelClass):
                 return self.predict_proba(x_test)
             else:
                 probas = self._get_probas(x_test, **kwargs)
-                return self.aggregation_function(probas)
+                preds = self.aggregation_function(probas)
+                if not np.in1d(preds, self.array_target).all():
+                    preds = self.array_target[preds]
+                return preds
         else:
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
@@ -174,8 +179,6 @@ class ModelAggregation(ModelClass):
                 transform_dict = {col: [0. if _ != i else 1. for _ in range(len(self.list_classes))] for i, col in enumerate(self.list_classes)}
                 probas = np.array([transform_dict[x] for x in preds])
                 return probas
-
-
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -294,6 +297,15 @@ class ModelAggregation(ModelClass):
                 # TODO: use dill to get rid of  "can't pickle ..." errors
                 pickle.dump(self.aggregation_function, f)
 
+        # Save array_target if not None & level_save > LOW
+        if (self.array_target is not None) and (self.level_save in ['MEDIUM', 'HIGH']):
+            # Manage paths
+            array_target_path = os.path.join(self.model_dir, "array_target.pkl")
+            # Save as pickle
+            with open(array_target_path, 'wb') as f:
+                # TODO: use dill to get rid of  "can't pickle ..." errors
+                pickle.dump(self.array_target, f)
+
         # Save
         list_real_models = self.list_real_models
         self.list_real_models = None
@@ -350,22 +362,29 @@ class ModelAggregation(ModelClass):
         Raises:
             ValueError: If configuration_path is None
             ValueError: If aggregation_function_path is None
+            ValueError: If array_target_path is None
             FileNotFoundError: If the object configuration_path is not an existing file
             FileNotFoundError: If the object aggregation_function_path is not an existing file
+            FileNotFoundError: If the object array_target_path is not an existing file
         '''
         # Retrieve args
         configuration_path = kwargs.get('configuration_path', None)
         aggregation_function_path = kwargs.get('aggregation_function_path', None)
+        array_target_path = kwargs.get('array_target_path', None)
 
         # Checks
         if configuration_path is None:
             raise ValueError("The argument configuration_path can't be None")
         if aggregation_function_path is None:
             raise ValueError("The argument aggregation_function_path can't be None")
+        if array_target_path is None:
+            raise ValueError("The argument array_target_path can't be None")
         if not os.path.exists(configuration_path):
             raise FileNotFoundError(f"The file {configuration_path} does not exist")
         if not os.path.exists(aggregation_function_path):
             raise FileNotFoundError(f"The file {aggregation_function_path} does not exist")
+        if not os.path.exists(array_target_path):
+            raise FileNotFoundError(f"The file {array_target_path} does not exist")
 
         # Load confs
         with open(configuration_path, 'r', encoding='utf-8') as f:
@@ -391,6 +410,10 @@ class ModelAggregation(ModelClass):
                           'list_classes', 'dict_classes', 'multi_label', 'level_save',
                           'list_models', 'using_proba']:
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
+
+        # Reload array_target
+        with open(array_target_path, 'rb') as f:
+            self.array_target = pickle.load(f)
 
         self._sort_model_type()
 

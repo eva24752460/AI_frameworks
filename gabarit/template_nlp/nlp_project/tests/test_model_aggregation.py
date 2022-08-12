@@ -53,7 +53,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         os.chdir(dname)
 
     def test01_model_aggregation_init(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.__init__'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.__init__'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -258,7 +258,7 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 0])
+        y_train_mono = np.array([0, 1, 0, 1, 'oui'])
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -270,6 +270,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
+        self.assertTrue((model.array_target== y_train_mono).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -283,6 +284,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
+        self.assertTrue((model.array_target== y_train_mono).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -403,7 +405,7 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'none'])
         n_classes = 3
 
         # using_proba
@@ -411,15 +413,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         def argmax_sum(x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -428,15 +432,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         function_without_proba = ModelAggregation().majority_vote
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -447,21 +453,23 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'none'])
         n_classes = 3
 
         # list_models = [model, model]
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -472,15 +480,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         naive = ModelTfidfSuperDocumentsNaive()
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -489,15 +499,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         svm = ModelTfidfSvm()
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -509,15 +521,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         # list_models = [model, model]
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -527,15 +541,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         naive = ModelTfidfSuperDocumentsNaive()
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -544,15 +560,17 @@ class ModelTfidfaggregation(unittest.TestCase):
         svm = ModelTfidfSvm()
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_mono)
+        model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
+        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue(preds[0] in y_train_str)
         preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 0)
+        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1218,8 +1236,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1261,8 +1280,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1307,8 +1327,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1352,8 +1373,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1396,8 +1418,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1440,8 +1463,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1483,8 +1507,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
+        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1514,10 +1539,22 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', aggregation_function_path=aggregation_function_path)
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path='toto.pkl')
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path='toto.pkl', array_target_path=array_target_path)
+        with self.assertRaises(FileNotFoundError):
+            new_model = ModelAggregation()
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path='toto.pkl')
+        with self.assertRaises(ValueError):
+            new_model = ModelAggregation()
+            model_new.reload_from_standalone(model_dir=model_dir, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        with self.assertRaises(ValueError):
+            new_model = ModelAggregation()
+            model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, array_target_path=array_target_path)
+        with self.assertRaises(ValueError):
+            new_model = ModelAggregation()
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
 # Perform tests
 if __name__ == '__main__':
