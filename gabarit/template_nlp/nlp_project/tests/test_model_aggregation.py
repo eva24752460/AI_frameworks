@@ -53,7 +53,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         os.chdir(dname)
 
     def test01_model_aggregation_init(self):
-        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.__init__'''
+        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.__init__'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -67,7 +67,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         svm = list_models[0]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         self.assertEqual(model.model_dir, model_dir)
-        self.assertEqual(model.list_models, list_models)
+        list_models_name = []
+        for m in list_models:
+            list_models_name.append(os.path.split(m.model_dir)[-1])
+        self.assertEqual(model.list_models, list_models_name)
         self.assertEqual(model.list_real_models[0], svm)
         self.assertTrue(os.path.isdir(model_dir))
         # We test display_if_gpu_activated and _is_gpu_activated just by calling them
@@ -84,7 +87,10 @@ class ModelTfidfaggregation(unittest.TestCase):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         self.assertEqual(model.model_dir, model_dir)
-        self.assertEqual(model.list_models, list_models)
+        list_models_name = []
+        for m in list_models:
+            list_models_name.append(os.path.split(m.model_dir)[-1])
+        self.assertEqual(model.list_models, list_models_name)
         self.assertEqual(model.list_real_models[0], svm)
         self.assertTrue(os.path.isdir(model_dir))
         # We test display_if_gpu_activated and _is_gpu_activated just by calling them
@@ -100,7 +106,10 @@ class ModelTfidfaggregation(unittest.TestCase):
         function_without_proba = ModelAggregation().aggregation_function
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         self.assertEqual(model.model_dir, model_dir)
-        self.assertEqual(model.list_models, list_models)
+        list_models_name = []
+        for m in list_models:
+            list_models_name.append(os.path.split(m.model_dir)[-1])
+        self.assertEqual(model.list_models, list_models_name)
         self.assertEqual(model.list_real_models[0], svm)
         self.assertTrue(os.path.isdir(model_dir))
         # We test display_if_gpu_activated and _is_gpu_activated just by calling them
@@ -198,8 +207,8 @@ class ModelTfidfaggregation(unittest.TestCase):
             model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=test, using_proba = False)
         remove_dir(model_dir)
 
-    def test02_model_aggregation_get_real_models(self):
-        '''Test of the method _get_real_models of {{package_name}}.models_training.model_aggregation.ModelAggregation._get_real_models'''
+    def test02_model_aggregation_sort_model_type(self):
+        '''Test of the method _sort_model_type of {{package_name}}.models_training.model_aggregation.ModelAggregation._sort_model_type'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -210,6 +219,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         svm = list_models[0]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models.copy(), model_name=model_name)
+        model._sort_model_type()
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -220,6 +230,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         naive = ModelTfidfSuperDocumentsNaive()
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models.copy(), model_name=model_name)
+        model._sort_model_type()
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -229,6 +240,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         svm = ModelTfidfSvm()
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, model_name=model_name)
+        model._sort_model_type()
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
