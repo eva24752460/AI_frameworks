@@ -49,11 +49,8 @@ class ModelAggregation(ModelClass):
             TypeError : if the aggregation_function object is not of type str or Callable
             TypeError : if the aggregation_function object is of type Lambda
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
-            ValueError : if the object aggregation_function is not adapte the value using_proba
             ValueError : if use multi-labels
             ValueError : if aggregation_function object is Callable and using_proba is None
-            ValueError : if aggregation_function don't return np.ndarray type when using_proba = True
-            ValueError : if aggregation_function don't return pd.series type when using_proba = False
         '''
         # Init.
         super().__init__(**kwargs)
@@ -71,19 +68,8 @@ class ModelAggregation(ModelClass):
             raise TypeError('The aggregation_function objects must be of the callable or str types.')
 
         if isinstance(aggregation_function, (Callable)):
-            if aggregation_function.__name__ == "<lambda>":
-                raise TypeError('For save aggregation_function in pkl, it cannot be lambda.')
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
-
-            elif using_proba:
-                if not isinstance(aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]), np.ndarray) or aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]).shape != (1,):
-                    raise ValueError(f"if using_proba, the aggregation_function must take a list of of each model's probability as an argument list shape = [array([n_samples, n_features]), n_model], and return an array with shape = [n_samples]")
-            elif not using_proba:
-                df = pd.DataFrame([[0, 1], [1, 1]])
-                output_aggregation_fuction = df.apply(lambda x: aggregation_function(x), axis=1)
-                if not isinstance(output_aggregation_fuction[0], np.int64) or output_aggregation_fuction.shape != (2,):
-                    raise ValueError(f"if not using_proba, the aggregation_function must take a list of of each model's prediction as an argument pd.series shape = [n_test, n_model], and return an pd.Series shape = [n_test]")
             self.using_proba = using_proba
 
         if isinstance(aggregation_function, str):
@@ -144,7 +130,7 @@ class ModelAggregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, return_proba: bool = None, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba: bool = False, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -152,8 +138,6 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples]
         '''
-        return_proba = self.using_proba if return_proba is None else return_proba
-
         # We decide whether to rely on each model's probas or their prediction
         if return_proba:
             probas = self._get_probas(x_test,**kwargs)
