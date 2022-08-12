@@ -101,7 +101,7 @@ class ModelAggregation(ModelClass):
         self.aggregation_function = aggregation_function
         self.list_models, self.list_real_models = self._sort_model_type(list_models)
 
-    def _sort_model_type(self, list_models) -> Tuple(List, List):
+    def _sort_model_type(self, list_models) -> Tuple[List, List]:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
         '''
         if list_models is None:
@@ -113,12 +113,12 @@ class ModelAggregation(ModelClass):
             for i, model in enumerate(list_models):
                 if isinstance(model, str):
                     real_model, _ = utils_models.load_model(model)
-                    new_list_model.append(model)
+                    new_list_models.append(model)
                 else:
                     real_model = model
-                    new_list_model.append(os.path.split(model.model_dir)[-1])
+                    new_list_models.append(os.path.split(model.model_dir)[-1])
                 list_real_models.append(real_model)
-            return new_list_model, list_real_models
+            return new_list_models, list_real_models
 
     def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
