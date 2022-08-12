@@ -20,6 +20,8 @@
 
 
 import os
+
+from template_nlp.nlp_project.tests.test_model_aggregation import ModelTfidfaggregation
 # Disable some tensorflow logs right away
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -50,7 +52,8 @@ from {{package_name}}.models_training import (model_tfidf_dense,
                                               utils_models,
                                               model_tfidf_cos,
                                               model_tfidf_super_documents_naive,
-                                              utils_super_documents,)
+                                              utils_super_documents,
+                                              model_aggregation,)
 
 # Disable some warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -281,6 +284,9 @@ def main(filename: str, x_col: Union[str, int], y_col: List[Union[str, int]], fi
         #                                       tfidf_count_params={'ngram_range': (1, 2), 'max_features': 100000},
         #                                       tfidf_transformer_params={"norm": "l2", "sublinear_tf": false},
         #                                       multi_label=multi_label)
+        # modle = model_aggregation(x_col=x_col, y_col=y_col, level_save=level_save,
+        #                             list_models=[ModelTfidfSvm(), ModelTfidfSvm()],
+        #                             multi_label=multi_label)
     # Display if GPU is being used
     model.display_if_gpu_activated()
 

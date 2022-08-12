@@ -27,7 +27,7 @@ import dill as pickle
 
 import numpy as np
 import pandas as pd
-from typing import List, Callable, Tuple
+from typing import List, Callable
 
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
