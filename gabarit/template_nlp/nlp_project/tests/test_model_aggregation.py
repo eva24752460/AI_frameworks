@@ -53,7 +53,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         os.chdir(dname)
 
     def test01_model_aggregation_init(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.__init__'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.__init__'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -199,7 +199,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test02_model_aggregation_get_real_models(self):
-        '''Test of the method _get_real_models of tfidfDemo.models_training.model_aggregation.ModelAggregation._get_real_models'''
+        '''Test of the method _get_real_models of {{package_name}}.models_training.model_aggregation.ModelAggregation._get_real_models'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -235,7 +235,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test03_model_aggregation_fit(self):
-        '''Test of the method fit of tfidfDemo.models_training.model_aggregation.ModelAggregation'''
+        '''Test of the method fit of {{package_name}}.models_training.model_aggregation.ModelAggregation'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -380,7 +380,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         # remove_dir(model_dir)
 
     def test04_model_aggregation_predict(self):
-        '''Test of the method predict of tfidfDemo.models_training.model_aggregation.ModelAggregation'''
+        '''Test of the method predict of {{package_name}}.models_training.model_aggregation.ModelAggregation'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -573,7 +573,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test05_model_aggregation_get_proba(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation._get_proba'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation._get_proba'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -663,7 +663,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test06_model_aggregation_get_predictions(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation._get_predictions'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation._get_predictions'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -715,7 +715,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test07_model_aggregation_predict_proba(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.predict_proba'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.predict_proba'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -770,7 +770,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test08_model_aggregation_proba_argmax(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.proba_argmax'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.proba_argmax'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -810,7 +810,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test09_model_aggregation_majority_vote(self):
-        '''Test of tfidfDemo.models_training.model_aggregation.ModelAggregation.majority_vote'''
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.majority_vote'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -850,7 +850,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test10_model_aggregation_save(self):
-        '''Test of the method save of tfidfDemo.models_training.model_aggregation.ModelAggregation.save'''
+        '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -1127,7 +1127,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test11_model_aggregation_get_and_save_metrics(self):
-        '''Test of the method tfidfDemo.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
+        '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
 
         # Model creation
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
@@ -1182,7 +1182,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
     def test12_model_aggregation_reload_from_standalone(self):
-        '''Test of the method tfidfDemo.models_training.model_aggregation.ModelAaggregation.reload_from_standalone'''
+        '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAaggregation.reload_from_standalone'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)

@@ -143,7 +143,7 @@ class ModelAggregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, return_proba: bool = None, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba: bool = False, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -151,17 +151,16 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples]
         '''
-        return_proba = self.using_proba if return_proba is None else return_proba
 
         # We decide whether to rely on each model's probas or their prediction
         if self.using_proba:
             if return_proba:
                 return self.predict_proba(x_test)
             else:
-                probas = self._get_probas(x_test,**kwargs)
+                probas = self._get_probas(x_test, **kwargs)
                 return self.aggregation_function(probas)
 
-        elif not self.using_proba:
+        else:
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
             # aggregation_function is the function that actually does the aggregation work
