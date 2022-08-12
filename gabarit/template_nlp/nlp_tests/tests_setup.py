@@ -288,9 +288,16 @@ class Case3_unit_tests(unittest.TestCase):
             os.makedirs(models_path)
 
     def test24_test_utils_super_documents(self):
-        '''Launches tests of file utils.py'''
+        '''Launches tests of file utils_super_documents.py'''
         self.assertEqual(subprocess.run(f'{activate_venv}python {full_path_lib}/tests/test_utils_super_documents.py', shell=True).returncode, 0)
 
+    def test25_test_model_aggregation(self):
+        '''Launches tests of file model_aggregation.py'''
+        self.assertEqual(subprocess.run(f'{activate_venv}python {full_path_lib}/tests/test_model_aggregation.py', shell=True).returncode, 0)
+        models_path = os.path.join(full_path_lib, 'test_template_nlp-models')
+        if os.path.exists(models_path):
+            shutil.rmtree(models_path)
+            os.makedirs(models_path)
 
 if __name__ == '__main__':
     # Retrieve pip params
