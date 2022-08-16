@@ -63,9 +63,9 @@ class ModelTfidfaggregation(unittest.TestCase):
         ############################################
 
         # aggregation_function is 'majority_vote'
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfSvm(multi_label=True)]
         svm = list_models[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
         self.assertEqual(model.model_dir, model_dir)
         list_models_name = []
         for m in list_models:
@@ -73,6 +73,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, list_models_name)
         self.assertEqual(model.list_real_models[0], svm)
         self.assertTrue(os.path.isdir(model_dir))
+        self.assertTrue(model.multi_label)
         # We test display_if_gpu_activated and _is_gpu_activated just by calling them
         self.assertTrue(type(model._is_gpu_activated()) == bool)
         model.display_if_gpu_activated()
@@ -164,10 +165,6 @@ class ModelTfidfaggregation(unittest.TestCase):
         with self.assertRaises(TypeError):
             model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=1234)
         remove_dir(model_dir)
-        # if the aggregation_function object is type lambda
-        with self.assertRaises(TypeError):
-            model = ModelAggregation(model_dir=model_dir, list_models={}, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
-        remove_dir(model_dir)
 
         # if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
         with self.assertRaises(ValueError):
@@ -182,11 +179,6 @@ class ModelTfidfaggregation(unittest.TestCase):
             model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function='proba_argmax', using_proba=False)
         remove_dir(model_dir)
 
-        # if use multi-labels
-        with self.assertRaises(ValueError):
-            model = ModelAggregation(model_dir=model_dir, list_models={}, multi_label=True)
-        remove_dir(model_dir)
-
         # if aggregation_function object is Callable and using_proba is None
         with self.assertRaises(ValueError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -195,17 +187,12 @@ class ModelTfidfaggregation(unittest.TestCase):
             model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=None, aggregation_function=argmax_sum)
         remove_dir(model_dir)
 
-        # if aggregation_function don't return np.ndarray type when using_proba = True   or   pd.series type when using_proba = False
+        # if 'multi_label' inconsistent
         with self.assertRaises(ValueError):
-            def test(x):
-                return "test"
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=test)
+            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True)
         remove_dir(model_dir)
-        with self.assertRaises(ValueError):
-            def test(x):
-                return ['x', 'x']
-            model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=test, using_proba = False)
-        remove_dir(model_dir)
+
 
     def test02_model_aggregation_sort_model_type(self):
         '''Test of the method _sort_model_type of {{package_name}}.models_training.model_aggregation.ModelAggregation._sort_model_type'''
@@ -219,7 +206,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         svm = list_models[0]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models.copy(), model_name=model_name)
-        model._sort_model_type()
+        model._sort_model_type(list_models)
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -230,7 +217,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         naive = ModelTfidfSuperDocumentsNaive()
         list_models = [svm, naive]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models.copy(), model_name=model_name)
-        model._sort_model_type()
+        model._sort_model_type(list_models)
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -240,7 +227,7 @@ class ModelTfidfaggregation(unittest.TestCase):
         svm = ModelTfidfSvm()
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, model_name=model_name)
-        model._sort_model_type()
+        model._sort_model_type(list_models)
         self.assertEqual(model.list_real_models[0], svm)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -891,9 +878,7 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
-            return np.argmax(sum(x), axis=1)
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))

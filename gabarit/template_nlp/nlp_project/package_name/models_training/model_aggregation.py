@@ -47,72 +47,57 @@ class ModelAggregation(ModelClass):
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
         Raises:
             TypeError : if the aggregation_function object is not of type str or Callable
-            TypeError : if the aggregation_function object is of type Lambda
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
-            ValueError : if use multi-labels
             ValueError : if aggregation_function object is Callable and using_proba is None
-            ValueError : if aggregation_function don't return np.ndarray type when using_proba = True
-            ValueError : if aggregation_function don't return pd.series type when using_proba = False
+            ValueError : The 'multi_label' parameters of the list models are inconsistent with the model_aggregation
         '''
         # Init.
         super().__init__(**kwargs)
 
-        if self.multi_label:
-            raise ValueError("Model aggregation does not support multi-labels")
-
         # Get logger (must be done after super init)
         self.logger = logging.getLogger(__name__)
 
-        #Get the aggregation function
+        # Get the aggregation function
+        self.using_proba = using_proba
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
         if not isinstance(aggregation_function, (Callable, str)):
             raise TypeError('The aggregation_function objects must be of the callable or str types.')
-
-        if isinstance(aggregation_function, (Callable)):
-            if aggregation_function.__name__ == "<lambda>":
-                raise TypeError('For save aggregation_function in pkl, it cannot be lambda.')
+        elif isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
-
-            elif using_proba:
-                if not isinstance(aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]), np.ndarray) or aggregation_function([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]).shape != (1,):
-                    raise ValueError(f"if using_proba, the aggregation_function must take a list of of each model's probability as an argument list shape = [array([n_samples, n_features]), n_model], and return an array with shape = [n_samples]")
-            elif not using_proba:
-                df = pd.DataFrame([[0, 1], [1, 1]])
-                output_aggregation_fuction = df.apply(lambda x: aggregation_function(x), axis=1)
-                if not isinstance(output_aggregation_fuction[0], np.int64) or output_aggregation_fuction.shape != (2,):
-                    raise ValueError(f"if not using_proba, the aggregation_function must take a list of of each model's prediction as an argument pd.series shape = [n_test, n_model], and return an pd.Series shape = [n_test]")
-            self.using_proba = using_proba
-
-        if isinstance(aggregation_function, str):
+        else:
             if aggregation_function not in dict_aggregation_function.keys():
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
             if using_proba is None:
                 self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
             elif using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({using_proba})")
-            else:
-                self.using_proba = using_proba
             aggregation_function = dict_aggregation_function[aggregation_function]['function']
 
         # Manage model
         self.aggregation_function = aggregation_function
-        self.list_models = list_models
         self.list_real_models = None
+        self.list_models = None
         self.array_target = None
         if list_models is not None:
-            self._sort_model_type()
+            self._sort_model_type(list_models)
 
-    def _sort_model_type(self) -> None:
+        # Error for multi label inconsistency
+        if self.list_real_models is not None:
+            set_multi_label = {model.multi_label for model in self.list_real_models}
+            if (True in set_multi_label and not self.multi_label) or (False in set_multi_label and self.multi_label):
+                    raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
+
+    def _sort_model_type(self, list_models) -> None:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
         '''
         if self.list_real_models is None:
             list_real_models = []
             new_list_models = []
             #Get the real model or keep it
-            for i, model in enumerate(self.list_models):
+            for model in list_models:
                 if isinstance(model,str):
                     real_model, _ = utils_models.load_model(model)
                     new_list_models.append(model)
@@ -157,15 +142,14 @@ class ModelAggregation(ModelClass):
             (np.array): array of shape = [n_samples]
         '''
         # We decide whether to rely on each model's probas or their prediction
-        if self.using_proba:
-            if return_proba:
-                return self.predict_proba(x_test)
-            else:
-                probas = self._get_probas(x_test, **kwargs)
-                preds = self.aggregation_function(probas)
-                if not np.in1d(preds, self.array_target).all():
-                    preds = self.array_target[preds]
-                return preds
+        if return_proba:
+            return self.predict_proba(x_test)
+        elif self.using_proba:
+            probas = self._get_probas(x_test, **kwargs)
+            preds = self.aggregation_function(probas)
+            if not np.in1d(preds, self.array_target).all():
+                preds = self.array_target[preds]
+            return preds
         else:
             dict_predict = self._get_predictions(x_test, **kwargs)
             df = pd.DataFrame(dict_predict)
@@ -173,12 +157,6 @@ class ModelAggregation(ModelClass):
             df['prediction_finale'] = df.apply(self.aggregation_function, axis=1)
             if not return_proba:
                 return df['prediction_finale'].values
-            else:
-            # - /!\\ THE AGGREGATION FUNCTION CHOOSE DOES NOT RETURN PROBABILITIES, HERE WE SIMULATE PROBABILITIES EQUAL TO 0 OR 1 /!\\ -
-                preds = df['prediction_finale'].values
-                transform_dict = {col: [0. if _ != i else 1. for _ in range(len(self.list_classes))] for i, col in enumerate(self.list_classes)}
-                probas = np.array([transform_dict[x] for x in preds])
-                return probas
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -415,7 +393,7 @@ class ModelAggregation(ModelClass):
         with open(array_target_path, 'rb') as f:
             self.array_target = pickle.load(f)
 
-        self._sort_model_type()
+        self._sort_model_type(self.list_models)
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
