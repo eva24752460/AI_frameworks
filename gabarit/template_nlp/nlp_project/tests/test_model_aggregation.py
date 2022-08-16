@@ -32,6 +32,7 @@ from sklearn.svm import SVC
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
 from {{package_name}}.models_training.model_tfidf_svm import ModelTfidfSvm
+from {{package_name}}.models_training.model_tfidf_gbt import ModelTfidfGbt
 from {{package_name}}.models_training.model_aggregation import ModelAggregation
 from {{package_name}}.models_training.model_tfidf_super_documents_naive import ModelTfidfSuperDocumentsNaive
 
@@ -193,7 +194,6 @@ class ModelTfidfaggregation(unittest.TestCase):
             model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True)
         remove_dir(model_dir)
 
-
     def test02_model_aggregation_sort_model_type(self):
         '''Test of the method _sort_model_type of {{package_name}}.models_training.model_aggregation.ModelAggregation._sort_model_type'''
 
@@ -257,7 +257,6 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
-        self.assertTrue((model.array_target== y_train_mono).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -271,7 +270,6 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_mono)
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
-        self.assertTrue((model.array_target== y_train_mono).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -330,6 +328,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 0])
+        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        cols = ['test1', 'test2', 'test3']
 
         # list_models = [model, model]
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -370,15 +370,15 @@ class ModelTfidfaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        # # Multi-labels
-        # list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        # model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-        # self.assertFalse(model.trained)
-        # self.assertEqual(model.nb_fit, 0)
-        # model.fit(x_train, y_train_multi[cols])
-        # self.assertTrue(model.trained)
-        # self.assertEqual(model.nb_fit, 1)
-        # remove_dir(model_dir)
+        # Multi-labels
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfSvm(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True)
+        self.assertFalse(model.trained)
+        self.assertEqual(model.nb_fit, 0)
+        model.fit(x_train, y_train_multi[cols])
+        self.assertTrue(model.trained)
+        self.assertEqual(model.nb_fit, 1)
+        remove_dir(model_dir)
 
     def test04_model_aggregation_predict(self):
         '''Test of the method predict of {{package_name}}.models_training.model_aggregation.ModelAggregation'''
@@ -397,9 +397,13 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
-            return np.argmax(sum(x), axis=1)
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
+        def function_test(predictions:pd.Series) -> list:
+            votes = predictions.value_counts().sort_values(ascending=False)
+            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
+                return predictions[0]
+            else:
+                return votes.index[0]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test)
         model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
@@ -460,7 +464,6 @@ class ModelTfidfaggregation(unittest.TestCase):
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
-
 
         # list_models = [model_name, model_name]
         svm = ModelTfidfSvm()
@@ -562,25 +565,41 @@ class ModelTfidfaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        # # Multi-labels
-        # list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        # model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-        # model.fit(x_train, y_train_multi[cols])
-        # preds = model.predict(x_train)
-        # self.assertEqual(preds.shape, (len(x_train), len(cols)))
-        # preds = model.predict('test')
-        # self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'])[0]])
-        # remove_dir(model_dir)
+        ######################################################
+        # multi_label & aggregation_funcion = 'proba_argmax'
+        # ######################################################
 
-        # Multi-label - using_proba
-        # list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        # model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        # model.fit(x_train, y_train_multi[cols])
-        # proba = model.predict(x_train)
-        # self.assertEqual(proba.shape, (len(x_train),))
-        # proba = model.predict('test')
-        # self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'])[0]])
-        # remove_dir(model_dir)
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        n_classes = 3
+        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        cols = ['test1', 'test2', 'test3']
+
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
+        model.fit(x_train, y_train_multi[cols])
+        proba = model.predict(x_train, return_proba=True)
+        self.assertEqual(proba.shape, (len(x_train), len(cols)))
+        proba = model.predict('test', return_proba=True)
+        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
+        preds = model.predict('test', return_proba=False)
+        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
+        remove_dir(model_dir)
+
+        # ######################################################
+        # # multi_label & aggregation_funcion = 'proba_argmax'
+        # ######################################################
+
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model.fit(x_train, y_train_multi[cols])
+        proba = model.predict(x_train, return_proba=True)
+        self.assertEqual(proba.shape, (len(x_train), len(cols)))
+        proba = model.predict('test', return_proba=True)
+        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
+        preds = model.predict('test', return_proba=False)
+        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
+        remove_dir(model_dir)
 
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
@@ -741,6 +760,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
         n_classes = 3
+        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        cols = ['test1', 'test2', 'test3']
 
         #  aggregation_funcion is Callable
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -775,6 +796,26 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(len(probas[0]), n_classes)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
+        # multi_label & aggregation_funcion = 'proba_argmax'
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
+        model.fit(x_train, y_train_multi[cols])
+        preds = model.predict_proba(x_train)
+        self.assertEqual(preds.shape, (len(x_train), len(cols)))
+        preds = model.predict_proba('test')
+        self.assertEqual([elem for elem in preds], [elem for elem in model.predict_proba(['test'])[0]])
+        remove_dir(model_dir)
+
+        # # multi_label & aggregation_funcion = 'proba_argmax'
+        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model.fit(x_train, y_train_multi[cols])
+        preds = model.predict_proba(x_train)
+        self.assertEqual(preds.shape, (len(x_train), len(cols)))
+        preds = model.predict_proba('test')
+        self.assertEqual([elem for elem in preds], [elem for elem in model.predict_proba(['test'])[0]])
         remove_dir(model_dir)
 
         # Model needs to be fitted
@@ -1221,9 +1262,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1265,9 +1305,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1312,9 +1351,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1358,9 +1396,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1403,9 +1440,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1448,9 +1484,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1492,9 +1527,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Reload
         conf_path = os.path.join(model.model_dir, "configurations.json")
         aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        array_target_path = os.path.join(model.model_dir, "array_target.pkl")
         model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
 
         # Test
         self.assertEqual(model.model_name, model_new.model_name)
@@ -1524,22 +1558,16 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path='toto.json', aggregation_function_path=aggregation_function_path)
         with self.assertRaises(FileNotFoundError):
             new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path='toto.pkl', array_target_path=array_target_path)
-        with self.assertRaises(FileNotFoundError):
-            new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path, array_target_path='toto.pkl')
+            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path='toto.pkl')
         with self.assertRaises(ValueError):
             new_model = ModelAggregation()
-            model_new.reload_from_standalone(model_dir=model_dir, aggregation_function_path=aggregation_function_path, array_target_path=array_target_path)
+            model_new.reload_from_standalone(model_dir=model_dir, aggregation_function_path=aggregation_function_path)
         with self.assertRaises(ValueError):
             new_model = ModelAggregation()
-            model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, array_target_path=array_target_path)
-        with self.assertRaises(ValueError):
-            new_model = ModelAggregation()
-            new_model.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
+            model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path)
 
 # Perform tests
 if __name__ == '__main__':
