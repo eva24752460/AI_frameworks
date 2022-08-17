@@ -185,8 +185,8 @@ class ModelTfidfaggregation(unittest.TestCase):
 
         # if 'multi_label' inconsistent
         with self.assertRaises(ValueError):
-            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True)
+            list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=False)
         remove_dir(model_dir)
 
     def test02_model_aggregation_sort_model_type(self):
@@ -373,6 +373,20 @@ class ModelTfidfaggregation(unittest.TestCase):
         model.fit(x_train, y_train_multi[cols])
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
+        remove_dir(model_dir)
+
+        # if model needs mono_label but y_train is multi_label
+        with self.assertRaises(ValueError):
+            list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=False)
+            model.fit(x_train, y_train_mono)
+        remove_dir(model_dir)
+
+        # if model needs mono_label but y_train is multi_label
+        with self.assertRaises(ValueError):
+            list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfSuperDocumentsNaive()]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=False)
+            model.fit(x_train, y_train_multi)
         remove_dir(model_dir)
 
     def test04_model_aggregation_predict(self):
@@ -725,8 +739,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
         preds = model._get_predictions(x_train)
-        self.assertTrue(type(preds) == dict)
-        self.assertEqual(len(preds), 2)
+        self.assertTrue(type(preds) == pd.DataFrame)
+        self.assertEqual(len(preds), 5)
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         preds_svm = model_svm.predict(x_train)

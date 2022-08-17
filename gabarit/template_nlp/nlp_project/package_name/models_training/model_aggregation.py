@@ -83,7 +83,7 @@ class ModelAggregation(ModelClass):
         # Error for multi label inconsistency
         if self.list_real_models is not None:
             set_multi_label = {model.multi_label for model in self.list_real_models}
-            if (True in set_multi_label and not self.multi_label) or (False in set_multi_label and self.multi_label):
+            if True in set_multi_label and not self.multi_label:
                     raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
 
     def _sort_model_type(self, list_models) -> None:
@@ -114,10 +114,18 @@ class ModelAggregation(ModelClass):
         Args:
             x_train (?): Array-like, shape = [n_samples]
             y_train (?): Array-like, shape = [n_samples]
+        Raises:
+            ValueError : if model needs mono_label but y_train is multi_label
+            ValueError : if model needs multi_label but y_train is mono_label
         '''
+        bool_multi_label = isinstance(y_train, pd.DataFrame) and len(y_train.iloc[0]>1)
         # Fit each model
         for model in self.list_real_models:
             if not model.trained:
+                if bool_multi_label and not model.multi_label:
+                    raise ValueError(f"Model ({model}) needs y_train_mono_label to fit")
+                if not bool_multi_label and model.multi_label:
+                    raise ValueError(f"Model ({model}) needs y_train_muliti_label to fit")
                 model.fit(x_train, y_train, **kwargs)
 
         #Set trained
