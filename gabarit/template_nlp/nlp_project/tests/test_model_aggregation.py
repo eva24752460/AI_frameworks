@@ -162,11 +162,6 @@ class ModelTfidfaggregation(unittest.TestCase):
         # Error
         ############################################
 
-        # if the aggregation_function object is not of type str or Callable
-        with self.assertRaises(TypeError):
-            model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function=1234)
-        remove_dir(model_dir)
-
         # if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
         with self.assertRaises(ValueError):
             model = ModelAggregation(model_dir=model_dir, list_models={}, aggregation_function='1234')
@@ -713,8 +708,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
         preds = model._get_predictions(x_train)
-        self.assertTrue(type(preds) == dict)
-        self.assertEqual(len(preds), 2)
+        self.assertTrue(type(preds) == pd.DataFrame)
+        self.assertEqual(len(preds), 5)
 
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)

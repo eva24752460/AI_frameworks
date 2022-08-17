@@ -27,7 +27,7 @@ import dill as pickle
 
 import numpy as np
 import pandas as pd
-from typing import List, Callable
+from typing import List, Callable, Union
 
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
@@ -38,7 +38,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List = None, aggregation_function = 'majority_vote', using_proba: bool = None, **kwargs) -> None:
+    def __init__(self, list_models: List = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: bool = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
@@ -46,10 +46,9 @@ class ModelAggregation(ModelClass):
             aggregation_function (Callable or str) : aggregation function used
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
         Raises:
-            TypeError : if the aggregation_function object is not of type str or Callable
+            ValueError : if aggregation_function object is Callable and using_proba is None
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
-            ValueError : if aggregation_function object is Callable and using_proba is None
             ValueError : The 'multi_label' parameters of the list models are inconsistent with the model_aggregation
         '''
         # Init.
@@ -62,9 +61,7 @@ class ModelAggregation(ModelClass):
         self.using_proba = using_proba
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
-        if not isinstance(aggregation_function, (Callable, str)):
-            raise TypeError('The aggregation_function objects must be of the callable or str types.')
-        elif isinstance(aggregation_function, (Callable)):
+        if isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
         else:
@@ -150,15 +147,9 @@ class ModelAggregation(ModelClass):
             preds = self.aggregation_function(probas)
             return preds
         else:
-            dict_predict = self._get_predictions(x_test, **kwargs)
-            if not self.multi_label:
-                df = pd.DataFrame(dict_predict)
-            else:
-                df = pd.DataFrame({key:list(vec) for key, vec in dict_predict.items()})
-            # aggregation_function is the function that actually does the aggregation work
+            df = self._get_predictions(x_test, **kwargs)
             df['prediction_finale'] = df.apply(self.aggregation_function, axis=1)
-            if not return_proba:
-                return df['prediction_finale'].values
+            return df['prediction_finale'].values
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -178,19 +169,24 @@ class ModelAggregation(ModelClass):
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def _get_predictions(self, x_test, **kwargs) -> dict:
+    def _get_predictions(self, x_test, **kwargs) -> pd.DataFrame:
         '''Recover the probability of each model being aggregated
 
         Args:
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
         Returns:
-            (dict): dictionary in which the values are lists of underlying model predictions
+            (pd.DataFrame): df in which the values are lists of underlying model predictions
         '''
         dict_predict = {}
         # Predict for each model
         for i, model in enumerate(self.list_real_models):
             dict_predict[i] = model.predict(x_test, **kwargs)
-        return dict_predict
+
+        if not self.multi_label:
+            df = pd.DataFrame(dict_predict)
+        else:
+            df = pd.DataFrame({key:list(vec) for key, vec in dict_predict.items()})
+        return df
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -217,7 +213,7 @@ class ModelAggregation(ModelClass):
             AttributeError: if not self.using_proba
         '''
         if not self.using_proba:
-            raise AttributeError(f"majority_vote is not compatible with using_proba=False")
+            raise AttributeError(f"proba_argmax is not compatible with using_proba=False")
 
         proba_average = sum(proba)/len(self.list_models)
         def get_class(x):
