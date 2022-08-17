@@ -157,7 +157,7 @@ class ModelAggregation(ModelClass):
         else:
             df = self._get_predictions(x_test, **kwargs)
             df['prediction_finale'] = df.apply(self.aggregation_function, axis=1)
-            return df['prediction_finale'].values
+            return np.array(df['prediction_finale'].tolist())
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -222,12 +222,16 @@ class ModelAggregation(ModelClass):
             raise AttributeError(f"proba_argmax is not compatible with using_proba=False")
 
         proba_average = sum(proba)/len(self.list_models)
-        def get_class(x):
-            return self.list_classes[x]
-        get_class_v = np.vectorize(get_class)
-        return get_class_v(np.argmax(proba_average, axis=1))
 
-    def majority_vote(self, predictions:pd.Series, multi_label:bool = None) -> list:
+        if not self.multi_label:
+            def get_class(x):
+                return self.list_classes[x]
+            get_class_v = np.vectorize(get_class)
+            return get_class_v(np.argmax(proba_average, axis=1))
+        else:
+            return (proba_average >= 0.5).astype(int)
+
+    def majority_vote(self, predictions: pd.Series) -> list:
         '''Aggregation_function: A majority voting system of multiple predictions is used.
         In the case of a tie, we use the first model's prediction (even if it is not in the first votes)
 
@@ -242,15 +246,11 @@ class ModelAggregation(ModelClass):
         if self.using_proba:
             raise AttributeError(f"majority_vote is not compatible with using_proba=True")
 
-        if (not self.multi_label and multi_label is None) or not multi_label:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
+        votes = predictions.value_counts().sort_values(ascending=False)
+        if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
+            return predictions[0]
         else:
-            df_transport = pd.DataFrame([[predictions[n_model][n_col] for n_model in range(len(self.list_models))] for n_col in range(len(predictions[0]))])
-            return list(self.majority_vote(df_transport))
+            return votes.index[0]
 
     def save(self, json_data: dict = {}) -> None:
         '''Saves the model

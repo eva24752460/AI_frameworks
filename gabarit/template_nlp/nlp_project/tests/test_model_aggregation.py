@@ -574,9 +574,9 @@ class ModelTfidfaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        ######################################################
+        #######################################################
         # multi_label & aggregation_funcion = 'proba_argmax'
-        # ######################################################
+        #######################################################
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
@@ -591,12 +591,14 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(proba.shape, (len(x_train), len(cols)))
         proba = model.predict('test', return_proba=True)
         self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train), len(cols)))
         preds = model.predict('test', return_proba=False)
         self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
         remove_dir(model_dir)
 
         # ######################################################
-        # # multi_label & aggregation_funcion = 'proba_argmax'
+        # # multi_label & aggregation_funcion = 'majority_vote'
         # ######################################################
 
         list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
@@ -606,6 +608,8 @@ class ModelTfidfaggregation(unittest.TestCase):
         self.assertEqual(proba.shape, (len(x_train), len(cols)))
         proba = model.predict('test', return_proba=True)
         self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train), len(cols)))
         preds = model.predict('test', return_proba=False)
         self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
         remove_dir(model_dir)
