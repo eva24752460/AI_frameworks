@@ -316,7 +316,7 @@ class ModelAggregation(ModelClass):
                                         x=x,
                                         series_to_add=series_to_add,
                                         type_data=type_data,
-                                        model_logger=model_logger)
+                                        model_logger=model_logger,)
 
         return super().get_and_save_metrics(y_true=y_true,
                                             y_pred=y_pred,
