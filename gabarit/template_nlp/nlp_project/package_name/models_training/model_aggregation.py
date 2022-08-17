@@ -185,15 +185,13 @@ class ModelAggregation(ModelClass):
         Returns:
             (pd.DataFrame): df in which the values are lists of underlying model predictions
         '''
-        dict_predict = {}
-        # Predict for each model
-        for i, model in enumerate(self.list_real_models):
-            dict_predict[i] = model.predict(x_test, **kwargs)
+        list_predict = np.array([model.predict(x_test) for model in self.list_real_models])
 
         if not self.multi_label:
-            df = pd.DataFrame(dict_predict)
+            list_predict = list_predict.T
+            df = pd.DataFrame(list_predict)
         else:
-            df = pd.DataFrame({key:list(vec) for key, vec in dict_predict.items()})
+            df = pd.DataFrame({key: list(vec) for key, vec in enumerate(list_predict)})
         return df
 
     @utils.data_agnostic_str_to_list
