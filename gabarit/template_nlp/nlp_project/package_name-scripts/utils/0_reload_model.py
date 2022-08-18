@@ -75,7 +75,7 @@ def main(model_dir: str, config_file: str = 'configurations.json',
         tfidf_file (str): TFIDF file name (models with tfidf)
         checkpoint_path (str): Pytorch lightning checkpoint name (models pytorch)
         torch_dir (str): Pytorch lightning directory name (models pytorch)
-        array_target_file (str): array_target file name (models tfidf_super_documents_naive, tfidf_cos and aggregation)
+        array_target_file (str): array_target file name (models tfidf_super_documents_naive, tfidf_cos)
         matrix_train_path (str): matrix_train file name (models tfidf_super_documents_naive and tfidf_cos)
         aggregation_function_path (str): aggregation_function file name (model aggregation)
     Raises:
@@ -202,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--checkpoint_path', default='best_model.ckpt', help="Pytorch lightning checkpoint name (models pytorch)")
     parser.add_argument('--torch_dir', default=None, help="Pytorch lightning directory name (models pytorch)")
     parser.add_argument('--matrix_train_file', default='matrix_train.pkl', help="matrix_train file name (models tfidf_super_documents_naive and tfidf_cos)")
-    parser.add_argument('--array_target_file', default='array_target.pkl', help="array_target file name (models tfidf_super_documents_naive, tfidf_cos and aggregation)")
+    parser.add_argument('--array_target_file', default='array_target.pkl', help="array_target file name (models tfidf_super_documents_naive, tfidf_cos)")
     parser.add_argument('--aggregation_function_file', default='aggregation_function.pkl', help="aggregation_function_file file name (models aggregation)")
     args = parser.parse_args()
     main(model_dir=args.model_dir, config_file=args.config_file, weights_file=args.weights_file,

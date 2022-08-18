@@ -21,7 +21,6 @@
 
 import os
 
-from template_nlp.nlp_project.tests.test_model_aggregation import ModelTfidfaggregation
 # Disable some tensorflow logs right away
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 

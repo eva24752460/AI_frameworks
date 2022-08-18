@@ -1477,6 +1477,94 @@ class Case3_MonoClassMultiLabel(unittest.TestCase):
         except Exception:
             self.fail('testModel_EmbeddingLstmStructuredAttention failed')
 
+    def test02_Model_Aggregation(self):
+        '''Test of the model TF-IDF/Aggregation'''
+        print('            ------------------ >     Test of the model TF-IDF/Aggregation     /   Mono-class & Multi-labels')
+
+        try:
+            # Load training file
+            spec = importlib.util.spec_from_file_location("test", f'{full_path_lib}/test_template_nlp-scripts/2_training.py')
+            test = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(test)
+
+            # Set model function majority_vote and list_models=[model, model]
+            model_name = 'aggregation_mono_class_multi_label'
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
+            os.makedirs(model_dir)
+            test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
+                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            multi_label=True, model_name=model_name, model_dir=model_dir)
+            # Test it
+            test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
+                      filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
+            test_model_mono_class_multi_label(self, test_model)
+
+            # Set model with function majority_vote and list_models=[model_name, model_name]
+            model_name = 'aggregation_mono_class_multi_label'
+            svm1 = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
+            svm2 = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
+            list_models = [svm1, svm2]
+            model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
+            os.makedirs(model_dir)
+            test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
+                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            multi_label=True, model_name=model_name, model_dir=model_dir)
+            # Test it
+            test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
+                      filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
+            test_model_mono_class_multi_label(self, test_model)
+
+            # Set model with function majority_vote and list_models=[model_name, model]
+            model_name = 'aggregation_mono_class_multi_label'
+            svm = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
+            list_models = [svm, model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
+            os.makedirs(model_dir)
+            test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
+                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            multi_label=True, model_name=model_name, model_dir=model_dir)
+            # Test it
+            test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
+                      filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
+            test_model_mono_class_multi_label(self, test_model)
+
+            # Set model with function proba_argmax
+            model_name = 'aggregation_mono_class_multi_label'
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
+            os.makedirs(model_dir)
+            test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
+                                                            list_models=list_models, using_proba=True, aggregation_function='proba_argmax',
+                                                            multi_label=True, model_name=model_name, model_dir=model_dir)
+            # Test it
+            test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
+                      filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
+            test_model_mono_class_multi_label(self, test_model)
+
+            # Set model with function given
+            model_name = 'aggregation_mono_class_multi_label'
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
+            os.makedirs(model_dir)
+
+            def function_test(predictions:pd.Series) -> list:
+                votes = predictions.value_counts().sort_values(ascending=False)
+                if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
+                    return predictions[0]
+                else:
+                    return votes.index[0]
+            test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
+                                                            list_models=list_models, using_proba=False, aggregation_function=function_test,
+                                                            multi_label=True, model_name=model_name, model_dir=model_dir)
+            # Test it
+            test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
+                      filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
+            test_model_mono_class_multi_label(self, test_model)
+
+        except Exception:
+            self.fail('testModel_Aggregation failed')
+
 def test_model_multi_class_mono_label(test_class, test_model):
     '''Generic fonction to test a given model for multi-classes/mono-label'''
 
