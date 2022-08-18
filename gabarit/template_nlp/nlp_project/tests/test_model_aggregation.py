@@ -16,8 +16,6 @@
 
 # Libs unittest
 import unittest
-from unittest.mock import Mock
-from unittest.mock import patch
 
 # Utils libs
 import os
@@ -142,7 +140,7 @@ class Modelaggregation(unittest.TestCase):
         # multi_label & not using_proba & function_test
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
         list_models = [svm_name, gbt]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -225,7 +223,7 @@ class Modelaggregation(unittest.TestCase):
         # list_models = [model_name, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -254,7 +252,7 @@ class Modelaggregation(unittest.TestCase):
 
         # not using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -390,7 +388,7 @@ class Modelaggregation(unittest.TestCase):
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True})
         gbt.fit(x_train, y_train_mono)
         list_models = [svm_name, gbt]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -439,7 +437,7 @@ class Modelaggregation(unittest.TestCase):
 
         # using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -612,7 +610,6 @@ class Modelaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         n_classes = 3
-        y_train_mono = np.array([0, 1, 0, 1, 2])
         y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
         cols = ['test1', 'test2', 'test3']
 
@@ -671,7 +668,7 @@ class Modelaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable and using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
+        def argmax_sum (x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
@@ -811,7 +808,7 @@ class Modelaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
+        def argmax_sum (x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
@@ -1140,7 +1137,7 @@ class Modelaggregation(unittest.TestCase):
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())#
+        self.assertTrue('date' in configs.keys())
         self.assertTrue('package_version' in configs.keys())
         self.assertEqual(configs['package_version'], utils.get_package_version())
         self.assertTrue('model_name' in configs.keys())
@@ -1171,7 +1168,7 @@ class Modelaggregation(unittest.TestCase):
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())#
+        self.assertTrue('date' in configs.keys())
         self.assertTrue('package_version' in configs.keys())
         self.assertEqual(configs['package_version'], utils.get_package_version())
         self.assertTrue('model_name' in configs.keys())
@@ -1202,7 +1199,7 @@ class Modelaggregation(unittest.TestCase):
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())#
+        self.assertTrue('date' in configs.keys())
         self.assertTrue('package_version' in configs.keys())
         self.assertEqual(configs['package_version'], utils.get_package_version())
         self.assertTrue('model_name' in configs.keys())
@@ -1268,7 +1265,7 @@ class Modelaggregation(unittest.TestCase):
             configs = json.load(f)
         self.assertEqual(configs['test'], 10)
         self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())#
+        self.assertTrue('date' in configs.keys())
         self.assertTrue('package_version' in configs.keys())
         self.assertEqual(configs['package_version'], utils.get_package_version())
         self.assertTrue('model_name' in configs.keys())
@@ -1305,7 +1302,7 @@ class Modelaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        model.list_classes = [0, 1,]
+        model.list_classes = [0, 1]
         y_true = np.array([0, 1, 0, 1])
         y_pred = np.array([0, 1, 1, 0])
         df_metrics = model.get_and_save_metrics(y_true, y_pred)
@@ -1367,7 +1364,7 @@ class Modelaggregation(unittest.TestCase):
 
         # Create model
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
+        def argmax_sum (x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
@@ -1753,7 +1750,7 @@ class Modelaggregation(unittest.TestCase):
         svm.fit(x_train, y_train_mono)
         svm.save()
         list_models = [svm_name, gbt]
-        def function_test(predictions:pd.Series) -> list:
+        def function_test(predictions: pd.Series) -> list:
             votes = predictions.value_counts().sort_values(ascending=False)
             if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
                 return predictions[0]
@@ -1805,6 +1802,7 @@ class Modelaggregation(unittest.TestCase):
         with self.assertRaises(ValueError):
             model_new = ModelAggregation()
             model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path)
+
 
 # Perform tests
 if __name__ == '__main__':
