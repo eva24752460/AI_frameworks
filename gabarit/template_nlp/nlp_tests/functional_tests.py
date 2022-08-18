@@ -232,6 +232,7 @@ class Case1_e2e_pipeline(unittest.TestCase):
         listdir = sorted(os.listdir(os.path.join(save_predictions_dir)))
         self.assertTrue(os.path.exists(os.path.join(save_predictions_dir, listdir[-1], 'predictions_with_y_true.csv')))  # last folder
 
+
 def test_model_mono_class_mono_label(test_class, test_model):
     '''Generic fonction to test a given model for mono-class/mono-label'''
 
@@ -960,6 +961,7 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
         except Exception:
             self.fail('testModel_Aggregation failed')
 
+
 def test_model_mono_class_multi_label(test_class, test_model):
     '''Generic fonction to test a given model for mono-class/multi-labels'''
 
@@ -1565,6 +1567,7 @@ class Case3_MonoClassMultiLabel(unittest.TestCase):
         except Exception:
             self.fail('testModel_Aggregation failed')
 
+
 def test_model_multi_class_mono_label(test_class, test_model):
     '''Generic fonction to test a given model for multi-classes/mono-label'''
 
@@ -1666,6 +1669,7 @@ def test_model_multi_class_mono_label(test_class, test_model):
     test_class.assertEqual([_[0] for _ in top_n_proba], [probas[0][index_none], probas[1][index_a], probas[2][index_b], probas[3][index_both]])
     # inverse_transform
     test_class.assertEqual(list(test_model.inverse_transform(preds)), ['none', 'a', 'b', 'both'])
+
 
 class Case4_MultiClassMonoLabel(unittest.TestCase):
     '''Class to test the multi-classes / mono-label case'''
@@ -2343,6 +2347,7 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
 
         except Exception:
             self.fail('testModel_Aggregation failed')
+
 
 if __name__ == '__main__':
     # Change directory to script directory parent

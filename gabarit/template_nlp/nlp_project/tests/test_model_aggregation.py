@@ -15,7 +15,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # Libs unittest
-from types import new_class
 import unittest
 from unittest.mock import Mock
 from unittest.mock import patch
@@ -27,10 +26,7 @@ import shutil
 import numpy as np
 import pandas as pd
 
-from sklearn.svm import SVC
-
 from {{package_name}} import utils
-from {{package_name}}.models_training import utils_models
 from {{package_name}}.models_training.model_tfidf_svm import ModelTfidfSvm
 from {{package_name}}.models_training.model_tfidf_gbt import ModelTfidfGbt
 from {{package_name}}.models_training.model_aggregation import ModelAggregation
@@ -40,8 +36,10 @@ from {{package_name}}.models_training.model_tfidf_super_documents_naive import M
 import logging
 logging.disable(logging.CRITICAL)
 
+
 def remove_dir(path):
     if os.path.isdir(path): shutil.rmtree(path)
+
 
 class Modelaggregation(unittest.TestCase):
     '''Main class to test model_aggregation'''
