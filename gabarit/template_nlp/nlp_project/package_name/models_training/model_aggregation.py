@@ -95,7 +95,7 @@ class ModelAggregation(ModelClass):
         if self.list_real_models is None:
             list_real_models = []
             new_list_models = []
-            #Get the real model or keep it
+            # Get the real model and model name
             for model in list_models:
                 if isinstance(model,str):
                     real_model, _ = utils_models.load_model(model)
@@ -144,6 +144,7 @@ class ModelAggregation(ModelClass):
 
         Args:
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
+            return_proba (bool): If the function should return the probabilities instead of the classes
         Returns:
             (np.array): array of shape = [n_samples]
         '''
@@ -257,12 +258,7 @@ class ModelAggregation(ModelClass):
 
         Kwargs:
             json_data (dict): Additional configurations to be saved
-        Raises:
-            ValueError: if the json_data object is not of type dict
         '''
-        if type(json_data) is not dict:
-            raise ValueError('json_data must be of type dict')
-
         # Save each model
         for model in self.list_real_models:
             model.save()
@@ -283,11 +279,11 @@ class ModelAggregation(ModelClass):
 
         # Save
         list_real_models = self.list_real_models
-        self.list_real_models = None
+        delattr(self, "list_real_models")
         delattr(self, "aggregation_function")
         super().save(json_data=json_data)
         setattr(self, "aggregation_function", aggregation_function)
-        self.list_real_models = list_real_models
+        setattr(self, "list_real_models", list_real_models)
 
     @utils.trained_needed
     def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger: ModelLogger = None) -> pd.Series:
@@ -301,15 +297,9 @@ class ModelAggregation(ModelClass):
             series_to_add (list): list of pd.Series to add to the dataframe
             type_data (str): dataset type (validation, test, ...)
             model_logger (ModelLogger): custom class to log metrics in ML Flow
-        Raises:
-            TypeError: if the series_to_add object is not of type list, and has pd.Series type elements
         Returns:
             pd.DataFrame: the df which contains the statistics
         '''
-        if series_to_add is not None:
-            if sum([1 if type(_) == pd.Series else 0 for _ in series_to_add]) != len(series_to_add):
-                raise TypeError("The series_to_add object must be composed of pd.Series")
-
         for model in self.list_real_models:
             model.get_and_save_metrics(y_true=y_true,
                                         y_pred=y_pred,
@@ -325,12 +315,10 @@ class ModelAggregation(ModelClass):
                                             type_data=type_data,
                                             model_logger=model_logger)
 
-    def reload_from_standalone(self, model_dir: str, **kwargs) -> None:
+    def reload_from_standalone(self, **kwargs) -> None:
         '''Reloads a model aggregation from its configuration and "standalones" files
             Reloads list model from "list_models" files
 
-        Args:
-            model_dir (str): Name of the folder containing the model (e.g. model_autres_2019_11_07-13_43_19)
         Kwargs:
             configuration_path (str): Path to configuration file
             aggregation_function_path (str): Path to aggregation_function_path

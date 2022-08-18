@@ -1258,15 +1258,6 @@ class ModelTfidfaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        # Model needs to be using_proba = False
-        with self.assertRaises(ValueError):
-            list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-            model.save(json_data='test')
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
     def test11_model_aggregation_get_and_save_metrics(self):
         '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
 
