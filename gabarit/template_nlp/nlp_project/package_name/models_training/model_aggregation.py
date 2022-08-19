@@ -61,7 +61,8 @@ class ModelAggregation(ModelClass):
         # Get the aggregation function
         self.using_proba = using_proba
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
-                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
+                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True},
+                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False}}
         if isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
@@ -270,6 +271,23 @@ class ModelAggregation(ModelClass):
             return predictions[0]
         else:
             return votes.index[0]
+
+    def all_predictions(self, predictions: pd.Series) -> list:
+        '''Aggregation_function: Return all labels predicted by the list model. (multi_label only)
+        return 1 if at least one model predicts this label
+
+        Args:
+            (pd.Series) : the Series containing the predictions of each models
+                          series in which the values are the lists of underlying model predictions
+        Return:
+            (list) : predict
+        Raises:
+            AttributeError: if not multi_label
+        '''
+        if not self.multi_label:
+            raise AttributeError('all_predictions can only be used with multi_label.')
+
+        return [1 if i >= 1 else 0 for i in predictions.sum()]
 
     def save(self, json_data: dict = {}) -> None:
         '''Saves the model
