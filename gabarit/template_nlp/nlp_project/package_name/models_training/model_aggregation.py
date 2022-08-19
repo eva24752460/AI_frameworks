@@ -34,6 +34,7 @@ from {{package_name}}.models_training import utils_models
 from {{package_name}}.monitoring.model_logger import ModelLogger
 from {{package_name}}.models_training.model_class import ModelClass
 
+
 class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
@@ -60,7 +61,7 @@ class ModelAggregation(ModelClass):
         # Get the aggregation function
         self.using_proba = using_proba
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
-                                    'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
+                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True}}
         if isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
@@ -84,7 +85,7 @@ class ModelAggregation(ModelClass):
         if self.list_real_models is not None:
             set_multi_label = {model.multi_label for model in self.list_real_models}
             if True in set_multi_label and not self.multi_label:
-                    raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
+                raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
 
     def _sort_model_type(self, list_models) -> None:
         '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
@@ -97,7 +98,7 @@ class ModelAggregation(ModelClass):
             new_list_models = []
             # Get the real model and model name
             for model in list_models:
-                if isinstance(model,str):
+                if isinstance(model, str):
                     real_model, _ = utils_models.load_model(model)
                     new_list_models.append(model)
                 else:
@@ -118,7 +119,7 @@ class ModelAggregation(ModelClass):
             ValueError : if model needs mono_label but y_train is multi_label
             ValueError : if model needs multi_label but y_train is mono_label
         '''
-        bool_multi_label = isinstance(y_train, pd.DataFrame) and len(y_train.iloc[0]>1)
+        bool_multi_label = isinstance(y_train, pd.DataFrame) and len(y_train.iloc[0] > 1)
         # Fit each model
         for model in self.list_real_models:
             if not model.trained:
@@ -128,7 +129,7 @@ class ModelAggregation(ModelClass):
                     raise ValueError(f"Model ({model}) needs y_train_muliti_label to fit")
                 model.fit(x_train, y_train, **kwargs)
 
-        #Set trained
+        # Set trained
         self.trained = True
         self.nb_fit += 1
 
@@ -173,7 +174,7 @@ class ModelAggregation(ModelClass):
         # Predict for each model
         list_predict_proba = []
         for model in self.list_real_models:
-            list_predict_proba.append(model.predict_proba(x_test,**kwargs))
+            list_predict_proba.append(model.predict_proba(x_test, **kwargs))
         return list_predict_proba
 
     @utils.data_agnostic_str_to_list
@@ -186,12 +187,29 @@ class ModelAggregation(ModelClass):
         Returns:
             (pd.DataFrame): df in which the values are lists of underlying model predictions
         '''
-        list_predict = np.array([model.predict(x_test) for model in self.list_real_models])
-
         if not self.multi_label:
+            list_predict = np.array([model.predict(x_test) for model in self.list_real_models])
             list_predict = list_predict.T
             df = pd.DataFrame(list_predict)
         else:
+            # Get all classes
+            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
+
+            list_predict = np.array([])
+            for model in self.list_real_models:
+                pred = model.predict(x_test)
+                if model.multi_label:
+                    df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
+                    df_model = pd.DataFrame(pred, columns=model.list_classes)
+                    for col in model.list_classes:
+                        df_all[col]=df_model[col]
+                    multi_pred = df_all.to_numpy()
+                else:
+                    multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
+                if len(list_predict)==0:
+                    list_predict = [multi_pred]
+                else:
+                    list_predict = np.concatenate((list_predict, [multi_pred]), axis=0)
             df = pd.DataFrame({key: list(vec) for key, vec in enumerate(list_predict)})
         return df
 
@@ -207,9 +225,9 @@ class ModelAggregation(ModelClass):
         '''
         list_predict_proba = self._get_probas(x_test, **kwargs)
         # The probas of all models are averaged.
-        return sum(list_predict_proba)/len(self.list_models)
+        return sum(list_predict_proba) / len(self.list_models)
 
-    def proba_argmax(self, proba:List) -> np.array:
+    def proba_argmax(self, proba: List) -> np.array:
         '''Aggregation_function: We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
 
         Args:
@@ -222,7 +240,7 @@ class ModelAggregation(ModelClass):
         if not self.using_proba:
             raise AttributeError(f"proba_argmax is not compatible with using_proba=False")
 
-        proba_average = sum(proba)/len(self.list_models)
+        proba_average = sum(proba) / len(self.list_models)
 
         if not self.multi_label:
             def get_class(x):
@@ -302,11 +320,11 @@ class ModelAggregation(ModelClass):
         '''
         for model in self.list_real_models:
             model.get_and_save_metrics(y_true=y_true,
-                                        y_pred=y_pred,
-                                        x=x,
-                                        series_to_add=series_to_add,
-                                        type_data=type_data,
-                                        model_logger=model_logger,)
+                                       y_pred=y_pred,
+                                       x=x,
+                                       series_to_add=series_to_add,
+                                       type_data=type_data,
+                                       model_logger=model_logger,)
 
         return super().get_and_save_metrics(y_true=y_true,
                                             y_pred=y_pred,
@@ -368,6 +386,7 @@ class ModelAggregation(ModelClass):
             setattr(self, attribute, configs.get(attribute, getattr(self, attribute)))
 
         self._sort_model_type(self.list_models)
+
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)
