@@ -172,11 +172,27 @@ class ModelAggregation(ModelClass):
         Returns:
             (list): array of shape = [n_samples, n_features]
         '''
-        # Predict for each model
-        list_predict_proba = []
-        for model in self.list_real_models:
-            list_predict_proba.append(model.predict_proba(x_test, **kwargs))
-        return list_predict_proba
+        if not self.multi_label:
+            # Predict for each model
+            list_predict_proba = []
+            for model in self.list_real_models:
+                list_predict_proba.append(model.predict_proba(x_test, **kwargs))
+            return list_predict_proba
+        else:
+            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
+            list_predict = []
+            for model in self.list_real_models:
+                pred = model.predict(x_test)
+                if model.multi_label:
+                    df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
+                    df_model = pd.DataFrame(pred, columns=model.list_classes)
+                    for col in model.list_classes:
+                        df_all[col]=df_model[col]
+                    multi_pred = df_all.to_numpy()
+                else:
+                    multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
+                list_predict.append(multi_pred)
+            return list_predict
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -229,10 +245,7 @@ class ModelAggregation(ModelClass):
             # The probas of all models are averaged.
             return sum(list_predict_proba) / len(self.list_models)
         else:
-            # Get all classes
             self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
-
-            # Get the df_pred from the eache model
             df_all = pd.DataFrame(columns=self.list_classes)
             list_predict = []
             for model in self.list_real_models:

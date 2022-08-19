@@ -733,6 +733,31 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
         remove_dir(model_svm.model_dir)
 
+        # multi_label
+        svm1 = ModelTfidfSvm(multi_label=True)
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
+        cols_1 = ['test1', 'test2', 'test4']
+        svm1.fit(x_train, y_1[cols_1])
+
+        svm2 = ModelTfidfSvm(multi_label=True)
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
+        cols_2 = ['test1', 'test3', 'test4']
+        svm2.fit(x_train, y_2[cols_2])
+        n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
+
+        list_models = [svm1,svm2]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='proba_argmax')
+        model.fit(x_train, y_2[cols_2])
+        preds = model._get_probas(x_train)
+        self.assertEqual(len(preds), len(list_models))
+        self.assertEqual(len(preds[0]), len(x_train))
+        self.assertEqual(len(preds[0][0]), n_cols)
+        for m in model.list_real_models:
+            remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
