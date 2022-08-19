@@ -224,9 +224,36 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples, n_classes]
         '''
-        list_predict_proba = self._get_probas(x_test, **kwargs)
-        # The probas of all models are averaged.
-        return sum(list_predict_proba) / len(self.list_models)
+        if not self.multi_label:
+            list_predict_proba = self._get_probas(x_test, **kwargs)
+            # The probas of all models are averaged.
+            return sum(list_predict_proba) / len(self.list_models)
+        else:
+            # Get all classes
+            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
+
+            # Get the df_pred from the eache model
+            df_all = pd.DataFrame(columns=self.list_classes)
+            list_predict = []
+            for model in self.list_real_models:
+                pred = model.predict(x_test)
+                if model.multi_label:
+                    df_pred = pd.DataFrame(pred, columns=model.list_classes)
+                else:
+                    df_pred = pd.DataFrame([[1 if pred[n_test] == col else 0 for col in model.list_classes] for n_test in range(len(pred))], columns=model.list_classes) 
+                list_predict.append(df_pred)
+
+            df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
+            count = {label: 0 for label in self.list_classes}
+            for df in list_predict:
+                for label in self.list_classes:
+                    if label in df.columns:
+                        df_all[label] = df_all[label] + df[label]
+                        count[label] = count[label] + 1
+
+            for label in self.list_classes:
+                df_all[label] = df_all[label]/count[label]
+            return df_all.to_numpy()
 
     def proba_argmax(self, proba: List) -> np.array:
         '''Aggregation_function: We take the argmax of the mean of the probabilities of the underlying models to provide a prediction

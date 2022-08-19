@@ -883,6 +883,34 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
+        # multi_label with non multi_label model
+        svm1 = ModelTfidfSvm(multi_label=True)
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
+        cols_1 = ['test1', 'test2', 'test4']
+        svm1.fit(x_train, y_1[cols_1])
+
+        svm2 = ModelTfidfSvm(multi_label=True)
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
+        cols_2 = ['test1', 'test3', 'test4']
+        svm2.fit(x_train, y_2[cols_2])
+
+        n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
+
+        gbt = ModelTfidfGbt()
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_3 = np.array(['test2', 'test3', 'test4'])
+        gbt.fit(x_train, y_3)
+
+        model = ModelAggregation(model_dir=model_dir, list_models=[svm1, svm2, gbt], multi_label=True, aggregation_function='majority_vote')
+        model.fit(x_train, y_2[cols_2])
+        preds = model.predict_proba(x_train)
+        self.assertEqual(preds.shape, (len(x_train), n_cols))
+        for m in model.list_real_models:
+            remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -1736,6 +1764,7 @@ class Modelaggregation(unittest.TestCase):
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         x_test = np.array(["ceci est un coucou", "pas lui", "lui non plus", "ici coucou", "là, rien!"])
         y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        y_train_mono = np.array(['test1', 'test1', 'test3', 'test2', 'test3'])
         cols = ['test1', 'test2', 'test3']
 
         # Create model
