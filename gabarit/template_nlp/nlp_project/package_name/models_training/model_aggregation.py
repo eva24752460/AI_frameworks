@@ -39,7 +39,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: List = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: bool = None, **kwargs) -> None:
+    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Args:
@@ -88,11 +88,22 @@ class ModelAggregation(ModelClass):
             if True in set_multi_label and not self.multi_label:
                 raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
 
-    def _sort_model_type(self, list_models) -> None:
-        '''Populate the self.list_real_models if it is None. Also transforms the ModelClass in self.list_models to the corresponding str if need be.
+        # Check fitted
+        if self.list_real_models is not None:
+            fitted = True
+            for model in self.list_real_models:
+                if not model.trained:
+                    fitted = False
+            if fitted:
+                self.trained = True
+                self.list_classes = list(np.unique(np.array([label for model in self.list_real_models for label in model.list_classes])))
+
+    def _sort_model_type(self, list_models: List) -> None:
+        '''Populate the self.list_real_models if it is None.
+           Init list_real_models with each model and list_models with each model_name.
 
         Args:
-            list_models (?): list of model_name or model
+            list_models (list): list of the models or of their name
         '''
         if self.list_real_models is None:
             list_real_models = []
@@ -125,23 +136,23 @@ class ModelAggregation(ModelClass):
         for model in self.list_real_models:
             if not model.trained:
                 if bool_multi_label and not model.multi_label:
-                    raise ValueError(f"Model ({model}) needs y_train_mono_label to fit")
+                    raise ValueError(f"Model {model} (model_name: {model.model_name}) needs y_train_mono_label to fit")
                 if not bool_multi_label and model.multi_label:
-                    raise ValueError(f"Model ({model}) needs y_train_muliti_label to fit")
+                    raise ValueError(f"Model {model}(model_name: {model.model_name}) needs y_train_multi_label to fit")
                 model.fit(x_train, y_train, **kwargs)
 
         # Set trained
         self.trained = True
         self.nb_fit += 1
 
-        # Set list_classes based on the list_classes of the first model
-        self.list_classes = self.list_real_models[0].list_classes.copy()
+        # Set list_classes
+        self.list_classes = list(np.unique(np.array([label for model in self.list_real_models for label in model.list_classes])))
         # Set dict_classes based on list classes
         self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
-    def predict(self, x_test, return_proba: bool = False, **kwargs) -> np.array:
+    def predict(self, x_test, return_proba: Union[bool, None] = False, **kwargs) -> np.array:
         '''Prediction
 
         Args:
@@ -172,27 +183,11 @@ class ModelAggregation(ModelClass):
         Returns:
             (list): array of shape = [n_samples, n_features]
         '''
-        if not self.multi_label:
-            # Predict for each model
-            list_predict_proba = []
-            for model in self.list_real_models:
-                list_predict_proba.append(model.predict_proba(x_test, **kwargs))
-            return list_predict_proba
-        else:
-            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
-            list_predict = []
-            for model in self.list_real_models:
-                pred = model.predict(x_test)
-                if model.multi_label:
-                    df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
-                    df_model = pd.DataFrame(pred, columns=model.list_classes)
-                    for col in model.list_classes:
-                        df_all[col] = df_model[col]
-                    multi_pred = df_all.to_numpy()
-                else:
-                    multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
-                list_predict.append(multi_pred)
-            return list_predict
+        list_predict_proba = []
+        for model in self.list_real_models:
+            pred = self._predict_model_with_full_list_classes(model, x_test, return_proba=True)
+            list_predict_proba.append(pred)
+        return list_predict_proba
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -209,22 +204,10 @@ class ModelAggregation(ModelClass):
             list_predict = list_predict.T
             df = pd.DataFrame(list_predict)
         else:
-            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
-            list_predict = np.array([])
+            list_predict = []
             for model in self.list_real_models:
-                pred = model.predict(x_test)
-                if model.multi_label:
-                    df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
-                    df_model = pd.DataFrame(pred, columns=model.list_classes)
-                    for col in model.list_classes:
-                        df_all[col] = df_model[col]
-                    multi_pred = df_all.to_numpy()
-                else:
-                    multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
-                if len(list_predict) == 0:
-                    list_predict = [multi_pred]
-                else:
-                    list_predict = np.concatenate((list_predict, [multi_pred]), axis=0)
+                pred = self._predict_model_with_full_list_classes(model, x_test, return_proba=False)
+                list_predict.append(pred)
             df = pd.DataFrame({key: list(vec) for key, vec in enumerate(list_predict)})
         return df
 
@@ -238,39 +221,39 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): array of shape = [n_samples, n_classes]
         '''
-        if not self.multi_label:
-            list_predict_proba = self._get_probas(x_test, **kwargs)
-            # The probas of all models are averaged.
-            return sum(list_predict_proba) / len(self.list_models)
+        list_predict_proba = self._get_probas(x_test, **kwargs)
+        # The probas of all models are averaged.
+        return sum(list_predict_proba) / len(self.list_models)
+
+    def _predict_model_with_full_list_classes(self, model, x_test, return_proba: Union[bool, None] = False) -> np.array:
+        '''For multi_label: Complete columns missing in the prediction of model (label missing in their list_classes)
+        
+        Args:
+            model (?): model to predict
+            x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
+            return_proba (bool): If the function should return the probabilities instead of the classes
+        Returns:
+            (np.array): predict complete (0 for missing columns)
+        '''
+        if return_proba:
+            pred = model.predict_proba(x_test)
         else:
-            self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
-            df_all = pd.DataFrame(columns=self.list_classes)
-            list_predict = []
-            for model in self.list_real_models:
-                pred = model.predict(x_test)
-                if model.multi_label:
-                    df_pred = pd.DataFrame(pred, columns=model.list_classes)
-                else:
-                    df_pred = pd.DataFrame([[1 if pred[n_test] == col else 0 for col in model.list_classes] for n_test in range(len(pred))], columns=model.list_classes)
-                list_predict.append(df_pred)
+            pred = model.predict(x_test)
 
+        if model.multi_label or return_proba:
             df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
-            count = {label: 0 for label in self.list_classes}
-            for df in list_predict:
-                for label in self.list_classes:
-                    if label in df.columns:
-                        df_all[label] = df_all[label] + df[label]
-                        count[label] = count[label] + 1
-
-            for label in self.list_classes:
-                df_all[label] = df_all[label] / count[label]
+            df_model = pd.DataFrame(pred, columns=model.list_classes)
+            for col in model.list_classes:
+                df_all[col] = df_model[col]
             return df_all.to_numpy()
+        else:
+            return np.array([[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))])
 
     def proba_argmax(self, proba: List) -> np.array:
         '''Aggregation_function: We take the argmax of the mean of the probabilities of the underlying models to provide a prediction
 
         Args:
-            (List): list of the probability of each model
+            proba (List): list of the probability of each model
         Returns:
             (np.array): array of shape = [n_samples]
         Raises:
@@ -327,7 +310,7 @@ class ModelAggregation(ModelClass):
 
         return [1 if i >= 1 else 0 for i in predictions.sum()]
 
-    def save(self, json_data: dict = {}) -> None:
+    def save(self, json_data: Union[dict, None] = {}) -> None:
         '''Saves the model
 
         Kwargs:
@@ -360,7 +343,7 @@ class ModelAggregation(ModelClass):
         setattr(self, "list_real_models", list_real_models)
 
     @utils.trained_needed
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: List[pd.Series] = None, type_data: str = '', model_logger: ModelLogger = None) -> pd.Series:
+    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: Union[List[pd.Series], None] = None, type_data: str = '', model_logger: Union[ModelLogger, None] = None) -> pd.Series:
         '''Function to obtain and save model metrics
 
         Args:
