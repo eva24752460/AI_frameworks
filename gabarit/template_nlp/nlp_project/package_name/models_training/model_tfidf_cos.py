@@ -24,7 +24,6 @@
 import os
 import math
 import json
-import scipy
 import pickle
 import logging
 import numpy as np
@@ -115,7 +114,7 @@ class ModelTfidfCos(ModelPipeline):
             return self.predict_cosine_similarity(x_test)
 
     @utils.trained_needed
-    def predict_cosine_similarity(self, x_test, return_proba: bool = False, **kwargs) -> np.ndarray:
+    def predict_cosine_similarity(self, x_test, return_cos: bool = False, **kwargs) -> np.ndarray:
         '''Predictions
         - /!\\ THE MODEL COSINE SIMILARITY DOES NOT RETURN PROBABILITIES, HERE WE SIMULATE PROBABILITIES EQUAL COSINE SIMILARITY /!\\ -
 
@@ -125,7 +124,13 @@ class ModelTfidfCos(ModelPipeline):
             return_proba (bool): If the function should return the probabilities instead of the classes (Keras compatibility)
         Returns:
             (np.ndarray): Array, shape = [n_samples]
+            return_proba (np.ndarray): Array, shape = [n_samples, n_train]
+        Raise:
+            if self.matrix_train or self.array_target is None
         '''
+        if self.matrix_train is None or self.array_target is None:
+            raise AttributeError('your fit is not valid')
+
         x_test = np.array([x_test]) if isinstance(x_test, str) else x_test
         x_test = np.array(x_test) if isinstance(x_test, list) else x_test
 
@@ -135,16 +140,16 @@ class ModelTfidfCos(ModelPipeline):
         train_size = math.ceil((self.matrix_train.shape[0]) / chunk_size)
         array_predicts = np.array([], dtype='int')
         for vec_row in range(vec_size):
-            block_vec = vec[vec_row*chunk_size : (vec_row+1) * chunk_size]
+            block_vec = vec[vec_row * chunk_size : (vec_row + 1) * chunk_size]
             list_cosine = []
             for train_row in range(train_size):
-                block_train = self.matrix_train[train_row*chunk_size : (train_row+1) * chunk_size]
+                block_train = self.matrix_train[train_row * chunk_size : (train_row + 1) * chunk_size]
                 cosine = cosine_similarity(block_train, block_vec).astype(np.float16)
                 list_cosine.append(cosine)
             concatenate_cosine = np.concatenate(list_cosine)
             array_predicts = np.append(array_predicts, np.argmax(concatenate_cosine, axis=0))
 
-        if return_proba:
+        if return_cos:
             return concatenate_cosine.T
         else:
             predicts = self.array_target[array_predicts]
@@ -158,17 +163,22 @@ class ModelTfidfCos(ModelPipeline):
         Args:
             x_test (?): Array-like or sparse matrix, shape = [n_samples]
         Returns:
-            (np.ndarray): Array, shape = [n_samples]
+            (np.ndarray): Array, shape = [n_samples, n_classes]
+        Raise:
+            if self.matrix_train or self.array_target is None
         '''
+        if self.matrix_train is None or self.array_target is None:
+            raise AttributeError('your fit is not valid')
+
         x_test = np.array([x_test]) if isinstance(x_test, str) else x_test
         x_test = np.array(x_test) if isinstance(x_test, list) else x_test
-        preds = self.predict_cosine_similarity(x_test, return_proba=True)
-        index_dict = {target: [i for i,t in enumerate(self.array_target) if t==target] for target in self.list_classes}
+        preds = self.predict_cosine_similarity(x_test, return_cos=True)
+        index_dict = {target: [i for i, t in enumerate(self.array_target) if t == target] for target in self.list_classes}
 
         probas_dict = {target:[] for target in set(self.array_target)}
         for col in preds:
             col_sum = col.sum()
-            col_div = np.array([col[i]/col_sum for i in range(len(self.array_target))]) if col_sum != 0 else np.array([1/len(col)]*len(self.array_target))
+            col_div = np.array([col[i] / col_sum for i in range(len(self.array_target))]) if col_sum != 0 else np.array([1 / len(col)] * len(self.array_target))
             for target in set(self.array_target):
                 probas_dict[target] = probas_dict[target] + [sum(col_div[index_dict[target]])]
 
@@ -286,6 +296,7 @@ class ModelTfidfCos(ModelPipeline):
             self.matrix_train = pickle.load(f)
         with open(array_target_path, 'rb') as f:
             self.array_target = pickle.load(f)
+
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)

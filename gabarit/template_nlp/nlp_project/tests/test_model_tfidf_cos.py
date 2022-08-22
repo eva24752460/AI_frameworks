@@ -133,44 +133,9 @@ class ModelTfidfCosTests(unittest.TestCase):
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        x_train_super_documents = np.array(["ceci est un test cela non plus", "pas cela ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
-        y_train_str = np.array(['a', 'b', 'a', 'b', 'c'])
 
-        # Mono label - no strategy - with super documents
-        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
-        model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train_super_documents, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train_super_documents),))
-        remove_dir(model_dir)
-
-        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue((preds == y_train_str).all())
-        model_vec = TfidfVectorizer()
-        model_vec.fit(x_train, y_train_str)
-        self.assertFalse(np.equal(model.tfidf.transform(x_train).toarray(), model_vec.transform(x_train).toarray()).all())
-        remove_dir(model_dir)
-
-        # Mono label - no strategy - with super documents - return proba
-        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
-        model.fit(x_train, y_train_mono)
-        preds = model.predict(x_train_super_documents, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train_super_documents), len(set(y_train_mono))))
-        remove_dir(model_dir)
-
-        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), len(set(y_train_mono))))
-        model_vec = TfidfVectorizer()
-        model_vec.fit(x_train, y_train_str)
-        self.assertFalse(np.equal(model.tfidf.transform(x_train).toarray(), model_vec.transform(x_train).toarray()).all())
-        remove_dir(model_dir)
-
-        # Mono label - no strategy - without super documents
+        # Mono label - no strategy
         model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=False)
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train, return_proba=False)
@@ -179,7 +144,7 @@ class ModelTfidfCosTests(unittest.TestCase):
         self.assertEqual(preds, model.predict(['test'], return_proba=False)[0])
         remove_dir(model_dir)
 
-        # Mono label - no strategy - without super documents - return proba
+        # Mono label - no strategy - return proba
         model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=False)
         model.fit(x_train, y_train_mono)
         preds = model.predict(x_train, return_proba=True)
@@ -194,7 +159,88 @@ class ModelTfidfCosTests(unittest.TestCase):
             model.predict('test')
         remove_dir(model_dir)
 
-    def test04_model_tfidf_cos_predict_proba(self):
+    def test04_model_tfidf_cos_predict_cosine_similarity(self):
+        '''Test of tfidfDemo.models_training.model_tfidf_cos.ModelTfidfCos.predict_cosine_similarity'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        x_train_super_documents = np.array(["ceci est un test cela non plus", "pas cela ici test", "là, rien!"])
+        y_train_mono = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['a', 'b', 'a', 'b', 'c'])
+
+        # Mono label - no strategy - with super documents
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
+        model.fit(x_train, y_train_mono)
+        preds = model.predict_cosine_similarity(x_train_super_documents, return_cos=False)
+        self.assertEqual(preds.shape, (len(x_train_super_documents),))
+        remove_dir(model_dir)
+
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
+        model.fit(x_train, y_train_str)
+        preds = model.predict_cosine_similarity(x_train, return_cos=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        self.assertTrue((preds == y_train_str).all())
+        model_vec = TfidfVectorizer()
+        model_vec.fit(x_train, y_train_str)
+        self.assertFalse(np.equal(model.tfidf.transform(x_train).toarray(), model_vec.transform(x_train).toarray()).all())
+        remove_dir(model_dir)
+
+        # Mono label - no strategy - with super documents - return proba
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
+        model.fit(x_train, y_train_mono)
+        preds = model.predict_cosine_similarity(x_train_super_documents, return_cos=True)
+        self.assertEqual(preds.shape, (len(x_train_super_documents), len(x_train)))
+        remove_dir(model_dir)
+
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
+        model.fit(x_train, y_train_str)
+        preds = model.predict_cosine_similarity(x_train, return_cos=True)
+        self.assertEqual(preds.shape, (len(x_train), len(x_train)))
+        model_vec = TfidfVectorizer()
+        model_vec.fit(x_train, y_train_str)
+        self.assertFalse(np.equal(model.tfidf.transform(x_train).toarray(), model_vec.transform(x_train).toarray()).all())
+        remove_dir(model_dir)
+
+        # Mono label - no strategy - without super documents
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=False)
+        model.fit(x_train, y_train_mono)
+        preds = model.predict_cosine_similarity(x_train, return_cos=False)
+        self.assertEqual(preds.shape, (len(x_train),))
+        preds = model.predict_cosine_similarity('test', return_cos=False)
+        self.assertEqual(preds, model.predict(['test'], return_cos=False)[0])
+        remove_dir(model_dir)
+
+        # Mono label - no strategy - without super documents - return proba
+        model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=False)
+        model.fit(x_train, y_train_mono)
+        preds = model.predict_cosine_similarity(x_train, return_cos=True)
+        self.assertEqual(preds.shape, (len(x_train), len(x_train)))
+        remove_dir(model_dir)
+
+        # Model needs to be fitted
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.predict_cosine_similarity('test')
+        remove_dir(model_dir)
+
+        # fit invalid
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.fit(x_train, y_train_mono)
+            model.matrix_train = None
+            model.predict_cosine_similarity('test')
+        remove_dir(model_dir)
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.fit(x_train, y_train_mono)
+            model.array_target = None
+            model.predict_cosine_similarity('test')
+        remove_dir(model_dir)
+
+    def test05_model_tfidf_cos_predict_proba(self):
         '''Test of {{package_name}}.models_training.model_tfidf_cos.ModelTfidfCos.predict_proba'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
@@ -204,8 +250,6 @@ class ModelTfidfCosTests(unittest.TestCase):
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
         n_classes = 3
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
-        cols = ['test1', 'test2', 'test3']
 
         # Mono-label - no strategy
         model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
@@ -216,7 +260,21 @@ class ModelTfidfCosTests(unittest.TestCase):
         self.assertEqual([elem for elem in preds[0]], [elem for elem in model.predict_proba(['test'])[0]])
         remove_dir(model_dir)
 
-    def test05_model_tfidf_cos_save(self):
+        # fit invalid
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.fit(x_train, y_train_mono)
+            model.matrix_train = None
+            model.predict_proba('test')
+        remove_dir(model_dir)
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfCos(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.fit(x_train, y_train_mono)
+            model.array_target = None
+            model.predict_proba('test')
+        remove_dir(model_dir)
+
+    def test06_model_tfidf_cos_save(self):
         '''Test of tfidfDemo.models_training.model_tfidf_cos.ModelTfidfCos.save'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
@@ -250,7 +308,7 @@ class ModelTfidfCosTests(unittest.TestCase):
         self.assertTrue('tfidf_confs' in configs.keys())
         remove_dir(model_dir)
 
-    def test06_model_tfidf_cos_reload_from_standalone(self):
+    def test07_model_tfidf_cos_reload_from_standalone(self):
         '''Test of tfidfDemo.models_training.model_tfidf_cos.ModelTfidfCos.reload_from_standalone'''
 
         ############################################
@@ -311,6 +369,7 @@ class ModelTfidfCosTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             new_model = ModelTfidfCos()
             new_model.reload_from_standalone(configuration_path=conf_path, sklearn_pipeline_path=pkl_path, matrix_train_path=matrix_train_path, array_target_path='toto.csv')
+
 
 # Perform tests
 if __name__ == '__main__':

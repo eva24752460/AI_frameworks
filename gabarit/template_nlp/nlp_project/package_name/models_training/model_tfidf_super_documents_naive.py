@@ -118,6 +118,7 @@ class ModelTfidfSuperDocumentsNaive(ModelPipeline):
             return_proba (bool): If the function should return the probabilities instead of the classes (Keras compatibility)
         Returns:
             (np.ndarray): Array, shape = [n_samples]
+            return_proba (np.ndarray): Array, shape = [n_samples, n_train]
         '''
         if return_proba:
             return self.predict_proba(x_test)
@@ -153,7 +154,11 @@ class ModelTfidfSuperDocumentsNaive(ModelPipeline):
             x_test (?): Array-like or sparse matrix, shape = [n_samples]
         Returns:
             (np.ndarray): Array, shape = [n_samples]
+        Raise:
+            if self.matrix_train == None
         '''
+        if self.matrix_train is None:
+            raise AttributeError('your fit is not valid')
         x_test = np.array([x_test]) if isinstance(x_test, str) else x_test
         x_test = np.array(x_test) if isinstance(x_test, list) else x_test
 
@@ -272,6 +277,7 @@ class ModelTfidfSuperDocumentsNaive(ModelPipeline):
             self.matrix_train = pickle.load(f)
         with open(array_target_path, 'rb') as f:
             self.array_target = pickle.load(f)
+
 
 if __name__ == '__main__':
     logger = logging.getLogger(__name__)

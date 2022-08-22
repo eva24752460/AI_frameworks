@@ -22,12 +22,10 @@ import os
 import json
 import shutil
 import numpy as np
-import pandas as pd
 
 from {{package_name}} import utils
 from {{package_name}}.models_training.model_tfidf_super_documents_naive import ModelTfidfSuperDocumentsNaive
 from {{package_name}}.models_training.utils_super_documents import TfidfTransformerSuperDocuments
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Disable logging
 import logging
@@ -172,7 +170,7 @@ class ModelTfidfSuperDocumentsNaiveTests(unittest.TestCase):
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
             model = ModelTfidfSuperDocumentsNaive(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
-            model.compute_predict('test')
+            model.predict_proba('test')
         remove_dir(model_dir)
 
     def test05_model_tfidf_super_documents_naive_compute_predict(self):
@@ -204,6 +202,14 @@ class ModelTfidfSuperDocumentsNaiveTests(unittest.TestCase):
         with self.assertRaises(AttributeError):
             model = ModelTfidfSuperDocumentsNaive(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
             model.compute_predict(x_train)
+        remove_dir(model_dir)
+
+        # fit invalid
+        with self.assertRaises(AttributeError):
+            model = ModelTfidfSuperDocumentsNaive(model_dir=model_dir, multi_label=False, multiclass_strategy=None)
+            model.fit(x_train, y_train_mono)
+            model.matrix_train = None
+            model.compute_predict('test')
         remove_dir(model_dir)
 
     def test06_model_tfidf_super_documents_naive_save(self):
@@ -254,8 +260,6 @@ class ModelTfidfSuperDocumentsNaiveTests(unittest.TestCase):
         x_test = np.array(["ceci est un coucou", "pas lui", "lui non plus", "ici coucou", "là, rien!"])
         y_train_mono = np.array(['non', 'oui', 'non', 'oui', 'non'])
         model = ModelTfidfSuperDocumentsNaive(model_dir=model_dir, multi_label=False, multiclass_strategy=None, with_super_documents=True)
-        tfidf = model.tfidf
-        tfidf_count = model.tfidf_count
         model.fit(x_train, y_train_mono)
         model.save()
 
@@ -305,6 +309,7 @@ class ModelTfidfSuperDocumentsNaiveTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             new_model = ModelTfidfSuperDocumentsNaive()
             new_model.reload_from_standalone(configuration_path=conf_path, sklearn_pipeline_path=pkl_path, matrix_train_path=matrix_train_path, array_target_path='toto.csv')
+
 
 # Perform tests
 if __name__ == '__main__':
