@@ -668,7 +668,7 @@ class Modelaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable and using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum (x):
+        def argmax_sum(x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
@@ -747,7 +747,7 @@ class Modelaggregation(unittest.TestCase):
         svm2.fit(x_train, y_2[cols_2])
         n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
 
-        list_models = [svm1,svm2]
+        list_models = [svm1, svm2]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_2[cols_2])
         preds = model._get_probas(x_train)
@@ -851,7 +851,7 @@ class Modelaggregation(unittest.TestCase):
 
         #  aggregation_funcion is Callable
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum (x):
+        def argmax_sum(x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)
@@ -1045,7 +1045,7 @@ class Modelaggregation(unittest.TestCase):
         svm2.fit(x_train, y_multi_2[cols_2])
 
         result = [[1, 1, 1, 0], [1, 1, 0, 1], [1, 0, 1, 0]]
-        y_mono= ['test1', 'test2', 'test1']
+        y_mono = ['test1', 'test2', 'test1']
 
         # test
         list_models = [svm1, svm2]
@@ -1053,7 +1053,7 @@ class Modelaggregation(unittest.TestCase):
         model.fit(x_train, y_multi_2[cols_2])
         series = model._get_predictions(x_train)
         pred = model.all_predictions(series.iloc[0])
-        self.assertTrue(pred==result[0])
+        self.assertTrue(pred == result[0])
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1483,7 +1483,7 @@ class Modelaggregation(unittest.TestCase):
 
         # Create model
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum (x):
+        def argmax_sum(x):
             return np.argmax(sum(x), axis=1)
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
         model.fit(x_train, y_train_mono)

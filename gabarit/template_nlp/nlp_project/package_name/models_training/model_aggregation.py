@@ -187,7 +187,7 @@ class ModelAggregation(ModelClass):
                     df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
                     df_model = pd.DataFrame(pred, columns=model.list_classes)
                     for col in model.list_classes:
-                        df_all[col]=df_model[col]
+                        df_all[col] = df_model[col]
                     multi_pred = df_all.to_numpy()
                 else:
                     multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
@@ -209,9 +209,7 @@ class ModelAggregation(ModelClass):
             list_predict = list_predict.T
             df = pd.DataFrame(list_predict)
         else:
-            # Get all classes
             self.list_classes = np.unique(np.array([model.list_classes for model in self.list_real_models]))
-
             list_predict = np.array([])
             for model in self.list_real_models:
                 pred = model.predict(x_test)
@@ -219,11 +217,11 @@ class ModelAggregation(ModelClass):
                     df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
                     df_model = pd.DataFrame(pred, columns=model.list_classes)
                     for col in model.list_classes:
-                        df_all[col]=df_model[col]
+                        df_all[col] = df_model[col]
                     multi_pred = df_all.to_numpy()
                 else:
                     multi_pred = [[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))]
-                if len(list_predict)==0:
+                if len(list_predict) == 0:
                     list_predict = [multi_pred]
                 else:
                     list_predict = np.concatenate((list_predict, [multi_pred]), axis=0)
@@ -253,7 +251,7 @@ class ModelAggregation(ModelClass):
                 if model.multi_label:
                     df_pred = pd.DataFrame(pred, columns=model.list_classes)
                 else:
-                    df_pred = pd.DataFrame([[1 if pred[n_test] == col else 0 for col in model.list_classes] for n_test in range(len(pred))], columns=model.list_classes) 
+                    df_pred = pd.DataFrame([[1 if pred[n_test] == col else 0 for col in model.list_classes] for n_test in range(len(pred))], columns=model.list_classes)
                 list_predict.append(df_pred)
 
             df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
@@ -265,7 +263,7 @@ class ModelAggregation(ModelClass):
                         count[label] = count[label] + 1
 
             for label in self.list_classes:
-                df_all[label] = df_all[label]/count[label]
+                df_all[label] = df_all[label] / count[label]
             return df_all.to_numpy()
 
     def proba_argmax(self, proba: List) -> np.array:
