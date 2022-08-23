@@ -42,7 +42,7 @@ class ModelAggregation(ModelClass):
     def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
-        Args:
+        Kwargs:
             list_models (list) : list of model to be aggregated
             aggregation_function (Callable or str) : aggregation function used
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
@@ -90,14 +90,10 @@ class ModelAggregation(ModelClass):
 
         # Check fitted
         if self.list_real_models is not None:
-            fitted = True
-            for model in self.list_real_models:
-                if not model.trained:
-                    fitted = False
-            if fitted:
-                self.trained = True
-                self.list_classes = list(np.unique(np.array([label for model in self.list_real_models for label in model.list_classes])))
-
+            models_trained = {model.trained for model in self.list_real_models}
+            if False not in models_trained:
+                self._set_trained()
+                
     def _sort_model_type(self, list_models: List) -> None:
         '''Populate the self.list_real_models if it is None.
            Init list_real_models with each model and list_models with each model_name.
@@ -120,6 +116,18 @@ class ModelAggregation(ModelClass):
             self.list_real_models = list_real_models
             self.list_models = new_list_models
 
+
+    def _set_trained(self):
+        '''Sets various attributes related to the fitting of underlying models
+        '''
+        self.trained = True
+        self.nb_fit += 1
+        # Set list_classes
+        self.list_classes = list(np.unique(np.array([label for model in self.list_real_models for label in model.list_classes])))
+        # Set dict_classes based on list classes
+        self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
+
+
     def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
            **kwargs enables Keras model compatibility.
@@ -141,14 +149,7 @@ class ModelAggregation(ModelClass):
                     raise ValueError(f"Model {model}(model_name: {model.model_name}) needs y_train_multi_label to fit")
                 model.fit(x_train, y_train, **kwargs)
 
-        # Set trained
-        self.trained = True
-        self.nb_fit += 1
-
-        # Set list_classes
-        self.list_classes = list(np.unique(np.array([label for model in self.list_real_models for label in model.list_classes])))
-        # Set dict_classes based on list classes
-        self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
+        self._set_trained()
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -183,11 +184,7 @@ class ModelAggregation(ModelClass):
         Returns:
             (list): array of shape = [n_samples, n_features]
         '''
-        list_predict_proba = []
-        for model in self.list_real_models:
-            pred = self._predict_model_with_full_list_classes(model, x_test, return_proba=True)
-            list_predict_proba.append(pred)
-        return list_predict_proba
+        return [self._predict_model_with_full_list_classes(model, x_test, return_proba=True) for model in self.list_real_models]
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
@@ -204,10 +201,7 @@ class ModelAggregation(ModelClass):
             list_predict = list_predict.T
             df = pd.DataFrame(list_predict)
         else:
-            list_predict = []
-            for model in self.list_real_models:
-                pred = self._predict_model_with_full_list_classes(model, x_test, return_proba=False)
-                list_predict.append(pred)
+            list_predict = [self._predict_model_with_full_list_classes(model, x_test, return_proba=False) for model in self.list_real_models]
             df = pd.DataFrame({key: list(vec) for key, vec in enumerate(list_predict)})
         return df
 
