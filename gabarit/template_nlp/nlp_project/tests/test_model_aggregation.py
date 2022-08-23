@@ -140,13 +140,7 @@ class Modelaggregation(unittest.TestCase):
         # multi_label & not using_proba & function_test
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
         list_models = [svm_name, gbt]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test, multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         self.assertTrue(os.path.isdir(model_dir))
         self.assertTrue(model.multi_label)
         self.assertFalse(model.using_proba)
@@ -205,6 +199,7 @@ class Modelaggregation(unittest.TestCase):
         model._sort_model_type(list_models)
         self.assertEqual(model.list_real_models, list_models)
         self.assertEqual(model.list_models[0], svm_name)
+        self.assertEqual(len(model.list_models), len(list_models))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -216,6 +211,7 @@ class Modelaggregation(unittest.TestCase):
         model._sort_model_type(list_models)
         self.assertEqual(type(model.list_real_models[0]), type(svm))
         self.assertEqual(model.list_models, [svm_name, gbt_name])
+        self.assertEqual(len(model.list_models), len(list_models))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -223,15 +219,10 @@ class Modelaggregation(unittest.TestCase):
         # list_models = [model_name, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test, multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         self.assertEqual(type(model.list_real_models[1]), type(gbt))
         self.assertEqual(model.list_models[0], svm_name)
+        self.assertEqual(len(model.list_models), len(list_models))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -252,13 +243,7 @@ class Modelaggregation(unittest.TestCase):
 
         # not using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=lambda x: 'oui')
         self.assertFalse(model.trained)
         self.assertEqual(model.nb_fit, 0)
         model.fit(x_train, y_train_mono)
@@ -268,55 +253,47 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        # using_proba and model fitted
+        # using_proba and some model fitted
         svm = ModelTfidfSvm()
         svm.fit(x_train, y_train_mono)
         list_models = [svm, ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().proba_argmax
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=function_without_proba)
+        function_with_proba = ModelAggregation().proba_argmax
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=function_with_proba)
         self.assertFalse(model.trained)
         self.assertEqual(model.nb_fit, 0)
         model.fit(x_train, y_train_mono)
         self.assertTrue(model.trained)
         self.assertEqual(model.nb_fit, 1)
+        for m in model.list_real_models:
+            remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
+        # using_proba and all model fitted
+        svm = ModelTfidfSvm()
+        naive =ModelTfidfSuperDocumentsNaive()
+        svm.fit(x_train, y_train_mono)
+        naive.fit(x_train, y_train_mono)
+        list_models = [svm, naive]
+        function_with_proba = ModelAggregation().proba_argmax
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=function_with_proba)
+        self.assertTrue(model.trained)
+        self.assertEqual(model.nb_fit, 1)
+        model.fit(x_train, y_train_mono)
+        self.assertTrue(model.trained)
+        self.assertEqual(model.nb_fit, 2)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
         ######################################################
-        # mono_label & aggregation_funcion = 'majority_vote'
+        # mono_label & aggregation_funcion in dict_aggregation_function
         ######################################################
 
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 0])
 
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        self.assertFalse(model.trained)
-        self.assertEqual(model.nb_fit, 0)
-        model.fit(x_train, y_train_mono)
-        self.assertTrue(model.trained)
-        self.assertEqual(model.nb_fit, 1)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        self.assertFalse(model.trained)
-        self.assertEqual(model.nb_fit, 0)
-        model.fit(x_train, y_train_mono)
-        self.assertTrue(model.trained)
-        self.assertEqual(model.nb_fit, 1)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model]
+        # aggregation_funcion is majority_vote
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
@@ -329,40 +306,7 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        ######################################################
-        # mono_label & aggregation_funcion = 'proba_argmax'
-        ######################################################
-
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 0])
-
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        self.assertFalse(model.trained)
-        self.assertEqual(model.nb_fit, 0)
-        model.fit(x_train, y_train_mono)
-        self.assertTrue(model.trained)
-        self.assertEqual(model.nb_fit, 1)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        self.assertFalse(model.trained)
-        self.assertEqual(model.nb_fit, 0)
-        model.fit(x_train, y_train_mono)
-        self.assertTrue(model.trained)
-        self.assertEqual(model.nb_fit, 1)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model]
+        # aggregation_funcion is proba_argmax
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
@@ -388,13 +332,7 @@ class Modelaggregation(unittest.TestCase):
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True})
         gbt.fit(x_train, y_train_mono)
         list_models = [svm_name, gbt]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test, multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         self.assertFalse(model.trained)
         self.assertEqual(model.nb_fit, 0)
         model.fit(x_train, y_train_multi[cols])
@@ -436,31 +374,27 @@ class Modelaggregation(unittest.TestCase):
         n_classes = 3
 
         # using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test)
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
+        list_models = [svm, gbt]
+        def function_with_proba(proba):
+            proba_average = np.sum(proba, axis=0)/proba.shape[0]
+            index_class = np.argmax(proba_average)
+            return index_class
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=function_with_proba)
         model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
         self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
         self.assertAlmostEqual(preds.sum(), len(x_train))
 
         preds = model.predict(x_train, return_proba=False)
         self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
         # not using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
+        list_models = [svm_name, gbt_name]
         function_without_proba = ModelAggregation().majority_vote
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         model.fit(x_train, y_train_str)
@@ -487,46 +421,8 @@ class Modelaggregation(unittest.TestCase):
         y_train_str = np.array(['oui', 'non', 'oui', 'non', 'none'])
         n_classes = 3
 
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
-
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
-
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt]
+        list_models = [svm, gbt_name]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_str)
         preds = model.predict(x_train, return_proba=True)
@@ -547,43 +443,6 @@ class Modelaggregation(unittest.TestCase):
         # mono_label & aggregation_funcion = 'proba_argmax'
         ######################################################
 
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
-
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
-
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
         # list_models = [model_name, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
@@ -604,7 +463,7 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         #######################################################
-        # multi_label & aggregation_funcion = 'proba_argmax'
+        # multi_label & aggregation_funcion = 'all_predictions'
         #######################################################
 
         # Set vars
@@ -615,27 +474,7 @@ class Modelaggregation(unittest.TestCase):
 
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        proba = model.predict(x_train, return_proba=True)
-        self.assertEqual(proba.shape, (len(x_train), len(cols)))
-        proba = model.predict('test', return_proba=True)
-        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train), len(cols)))
-        preds = model.predict('test', return_proba=False)
-        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # ######################################################
-        # # multi_label & aggregation_funcion = 'majority_vote'
-        # ######################################################
-
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         proba = model.predict(x_train, return_proba=True)
         self.assertEqual(proba.shape, (len(x_train), len(cols)))
@@ -666,48 +505,13 @@ class Modelaggregation(unittest.TestCase):
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
 
-        #  aggregation_funcion is Callable and using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        def argmax_sum(x):
-            return np.argmax(sum(x), axis=1)
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=argmax_sum)
-        model.fit(x_train, y_train_mono)
-        probas = model._get_probas(x_train)
-        self.assertTrue(type(probas) == list)
-        self.assertEqual(len(probas), 2)
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        probas_svm = model_svm.predict_proba(x_train)
-        self.assertEqual(probas[0].all(), probas_svm.all())
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        #  aggregation_funcion is Callable and not using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().majority_vote
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.fit(x_train, y_train_mono)
-        probas = model._get_probas(x_train)
-        self.assertTrue(type(probas) == list)
-        self.assertEqual(len(probas), 2)
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        probas_svm = model_svm.predict_proba(x_train)
-        self.assertEqual(probas[0].all(), probas_svm.all())
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
         # model using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
         probas = model._get_probas(x_train)
-        self.assertTrue(type(probas) == list)
-        self.assertEqual(len(probas), 2)
+        self.assertTrue(type(probas) == np.ndarray)
+        self.assertEqual(len(probas), len(x_train))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         probas_svm = model_svm.predict_proba(x_train)
@@ -717,13 +521,14 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
         remove_dir(model_svm.model_dir)
 
-        # model not using_proba
+        # aggregation_funcion is Callable and not using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        function_without_proba = ModelAggregation().majority_vote
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         model.fit(x_train, y_train_mono)
         probas = model._get_probas(x_train)
-        self.assertTrue(type(probas) == list)
-        self.assertEqual(len(probas), 2)
+        self.assertTrue(type(probas) == np.ndarray)
+        self.assertEqual(len(probas), len(x_train))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         probas_svm = model_svm.predict_proba(x_train)
@@ -748,11 +553,11 @@ class Modelaggregation(unittest.TestCase):
         n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
 
         list_models = [svm1, svm2]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='proba_argmax')
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='all_predictions')
         model.fit(x_train, y_2[cols_2])
         preds = model._get_probas(x_train)
-        self.assertEqual(len(preds), len(list_models))
-        self.assertEqual(len(preds[0]), len(x_train))
+        self.assertEqual(len(preds), len(x_train))
+        self.assertEqual(len(preds[0]), len(list_models))
         self.assertEqual(len(preds[0][0]), n_cols)
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -785,12 +590,12 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
         model.fit(x_train, y_train_mono)
         preds = model._get_predictions(x_train)
-        self.assertTrue(type(preds) == pd.DataFrame)
+        self.assertTrue(type(preds) == np.ndarray)
         self.assertEqual(len(preds), len(x_train))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         preds_svm = model_svm.predict(x_train)
-        self.assertTrue((preds[0].to_numpy() == preds_svm).all())
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -801,12 +606,12 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
         preds = model._get_predictions(x_train)
-        self.assertTrue(type(preds) == pd.DataFrame)
+        self.assertTrue(type(preds) == np.ndarray)
         self.assertEqual(len(preds), len(x_train))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         preds_svm = model_svm.predict(x_train)
-        self.assertTrue((preds[0].to_numpy() == preds_svm).all())
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -816,10 +621,10 @@ class Modelaggregation(unittest.TestCase):
         naive = ModelTfidfSuperDocumentsNaive()
         naive.fit(x_train, y_train_mono)
         list_models = [ModelTfidfSvm(multi_label=True), naive]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         preds = model._get_predictions(x_train)
-        self.assertTrue(type(preds) == pd.DataFrame)
+        self.assertTrue(type(preds) == np.ndarray)
         self.assertEqual(len(preds), len(x_train))
         self.assertEqual(len(preds[0][0]), all_multi_classes)
         for m in model.list_real_models:
@@ -849,7 +654,7 @@ class Modelaggregation(unittest.TestCase):
         y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
         cols = ['test1', 'test2', 'test3']
 
-        #  aggregation_funcion is Callable
+        # aggregation_funcion is Callable
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         def argmax_sum(x):
             return np.argmax(sum(x), axis=1)
@@ -884,21 +689,9 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-        # multi_label & aggregation_funcion = 'proba_argmax'
+        # multi_label
         list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        preds = model.predict_proba(x_train)
-        self.assertEqual(preds.shape, (len(x_train), len(cols)))
-        preds = model.predict_proba('test')
-        self.assertEqual([elem for elem in preds], [elem for elem in model.predict_proba(['test'])[0]])
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # multi_label & aggregation_funcion = 'majority_vote'
-        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         preds = model.predict_proba(x_train)
         self.assertEqual(preds.shape, (len(x_train), len(cols)))
@@ -909,23 +702,20 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         # multi_label with non multi_label model
-        svm1 = ModelTfidfSvm(multi_label=True)
+        # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
         y_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
-        cols_1 = ['test1', 'test2', 'test4']
-        svm1.fit(x_train, y_1[cols_1])
-
-        svm2 = ModelTfidfSvm(multi_label=True)
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
         y_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
+        y_3 = np.array(['test2', 'test3', 'test4'])
+        cols_1 = ['test1', 'test2', 'test4']
         cols_2 = ['test1', 'test3', 'test4']
-        svm2.fit(x_train, y_2[cols_2])
-
         n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
 
+        svm1 = ModelTfidfSvm(multi_label=True)
+        svm2 = ModelTfidfSvm(multi_label=True)
         gbt = ModelTfidfGbt()
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
-        y_3 = np.array(['test2', 'test3', 'test4'])
+        svm1.fit(x_train, y_1[cols_1])
+        svm2.fit(x_train, y_2[cols_2])
         gbt.fit(x_train, y_3)
 
         model = ModelAggregation(model_dir=model_dir, list_models=[svm1, svm2, gbt], multi_label=True, aggregation_function='majority_vote')
@@ -959,7 +749,8 @@ class Modelaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_mono)
-        get_probas = model.proba_argmax(model._get_probas(x_train))
+        preds = model._get_probas(x_train)
+        get_probas = np.array([model.proba_argmax(array) for array in preds])
         self.assertEqual(len(get_probas), len(x_train))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -968,7 +759,8 @@ class Modelaggregation(unittest.TestCase):
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
         model.fit(x_train, y_train_str)
-        get_probas = model.proba_argmax(model._get_probas(x_train))
+        preds = model._get_probas(x_train)
+        get_probas = np.array([model.proba_argmax(array) for array in preds])
         self.assertEqual(len(get_probas), len(x_train))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -1050,9 +842,9 @@ class Modelaggregation(unittest.TestCase):
         list_models = [svm1, svm2]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_multi_2[cols_2])
-        series = model._get_predictions(x_train)
-        pred = model.all_predictions(series.iloc[0])
-        self.assertTrue(pred == result[0])
+        get_pre = model._get_predictions(x_train)
+        pred = model.all_predictions(get_pre[0])
+        self.assertTrue((pred == result[0]).all())
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -1289,67 +1081,6 @@ class Modelaggregation(unittest.TestCase):
         # aggregation_funcion = 'proba_argmax'
         ######################################################
 
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
         # list_models = [model_name, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
@@ -1385,41 +1116,9 @@ class Modelaggregation(unittest.TestCase):
         # Multi label
         ######################################################
 
-        # majority_vote
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # proba_argmax
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True})
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
@@ -1729,7 +1428,7 @@ class Modelaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        exemple = np.array([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])])
         self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -1772,7 +1471,7 @@ class Modelaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        exemple = np.array([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])])
         self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -1815,7 +1514,7 @@ class Modelaggregation(unittest.TestCase):
         self.assertEqual(model.list_models, model_new.list_models)
         self.assertEqual(str(model.list_real_models)[:50], str(model_new.list_real_models)[:50])
         self.assertEqual(model.using_proba, model_new.using_proba)
-        exemple = [np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])]
+        exemple = np.array([np.array([[0.8, 0.2]]), np.array([[0.1, 0.9]])])
         self.assertEqual(model.aggregation_function(exemple), model_new.aggregation_function(exemple))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
@@ -1825,7 +1524,7 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_new.model_dir)
 
         #######################################################################################
-        #  multi_label   &    aggregation_funcion = 'proba_argmax'
+        #  multi_label   &    aggregation_funcion = 'all_predictions'
         #######################################################################################
 
         # Set vars
@@ -1837,45 +1536,9 @@ class Modelaggregation(unittest.TestCase):
         cols = ['test1', 'test2', 'test3']
 
         # Create model
-        list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        model.save()
-
-        # Reload
-        conf_path = os.path.join(model.model_dir, "configurations.json")
-        aggregation_function_path = os.path.join(model.model_dir, "aggregation_function.pkl")
-        model_new = ModelAggregation()
-        model_new.reload_from_standalone(model_dir=model_dir, configuration_path=conf_path, aggregation_function_path=aggregation_function_path)
-
-        # Test
-        self.assertEqual(model.model_name, model_new.model_name)
-        self.assertEqual(model.trained, model_new.trained)
-        self.assertEqual(model.nb_fit, model_new.nb_fit)
-        self.assertEqual(model.x_col, model_new.x_col)
-        self.assertEqual(model.y_col, model_new.y_col)
-        self.assertEqual(model.list_classes, model_new.list_classes)
-        self.assertEqual(model.dict_classes, model_new.dict_classes)
-        self.assertEqual(model.multi_label, model_new.multi_label)
-        self.assertEqual(model.level_save, model_new.level_save)
-        self.assertEqual(model.list_models, model_new.list_models)
-        # We can't really test the pipeline so we test predictions
-        self.assertEqual([list(_) for _ in model.predict_proba(x_test)], [list(_) for _ in model_new.predict_proba(x_test)])
-        for m in model.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_dir)
-        for m in model_new.list_real_models:
-            remove_dir(os.path.split(m.model_dir)[-1])
-        remove_dir(model_new.model_dir)
-
-        #######################################################################################
-        #  multi_label   &    aggregation_funcion = 'proba_argmax'
-        #######################################################################################
-
-        # Create model
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
         list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         model.save()
 
@@ -1914,13 +1577,7 @@ class Modelaggregation(unittest.TestCase):
         svm.fit(x_train, y_train_mono)
         svm.save()
         list_models = [svm_name, gbt]
-        def function_test(predictions: pd.Series) -> list:
-            votes = predictions.value_counts().sort_values(ascending=False)
-            if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                return predictions[0]
-            else:
-                return votes.index[0]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_test, multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         model.save()
 
