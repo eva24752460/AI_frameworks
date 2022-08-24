@@ -553,13 +553,13 @@ class Modelaggregation(unittest.TestCase):
         y_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
         cols_2 = ['test1', 'test3', 'test4']
         svm2.fit(x_train, y_2[cols_2])
-        n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
+        n_classes = 4 # ['test1', 'test2', 'test3', 'test4']
 
         list_models = [svm1, svm2]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='all_predictions')
         model.fit(x_train, y_2[cols_2])
         preds = model._get_probas(x_train)
-        self.assertEqual(probas.shape, (len(x_train), len(list_models), n_cols))
+        self.assertEqual(preds.shape, (len(x_train), len(list_models), n_classes))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -710,7 +710,7 @@ class Modelaggregation(unittest.TestCase):
         y_3 = np.array(['test2', 'test3', 'test4'])
         cols_1 = ['test1', 'test2', 'test4']
         cols_2 = ['test1', 'test3', 'test4']
-        n_cols = 4 # ['test1', 'test2', 'test3', 'test4']
+        n_classes = 4 # ['test1', 'test2', 'test3', 'test4']
 
         svm1 = ModelTfidfSvm(multi_label=True)
         svm2 = ModelTfidfSvm(multi_label=True)
@@ -722,7 +722,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=[svm1, svm2, gbt], multi_label=True, aggregation_function='majority_vote')
         model.fit(x_train, y_2[cols_2])
         preds = model.predict_proba(x_train)
-        self.assertEqual(preds.shape, (len(x_train), n_cols))
+        self.assertEqual(preds.shape, (len(x_train), n_classes))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
@@ -865,7 +865,55 @@ class Modelaggregation(unittest.TestCase):
                 remove_dir(os.path.split(m.model_dir)[-1])
             remove_dir(model_dir)
 
-    def test11_model_aggregation_predict_model_with_full_list_classes(self):
+    def test11_model_aggregation_vote_labels(self):
+        '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.vote_labels'''
+
+        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
+        remove_dir(model_dir)
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_multi_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
+        cols_1 = ['test1', 'test2', 'test4']
+        y_multi_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
+        cols_2 = ['test1', 'test3', 'test4']
+
+        svm1 = ModelTfidfSvm(multi_label=True)
+        svm1.fit(x_train, y_multi_1[cols_1])
+        svm2 = ModelTfidfSvm(multi_label=True)
+        svm2.fit(x_train, y_multi_2[cols_2])
+
+        result = [[1, 1, 1, 0], [1, 1, 0, 1], [1, 0, 1, 0]]
+        y_mono = ['test1', 'test2', 'test1']
+
+        # test
+        list_models = [svm1, svm2]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='vote_labels', multi_label=True)
+        model.fit(x_train, y_multi_2[cols_2])
+        get_pre = model._get_predictions(x_train)
+        pred = model.all_predictions(get_pre[0])
+        self.assertTrue((pred == result[0]).all())
+        for m in model.list_real_models:
+            remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
+        # Model needs to be multi_label = True
+        with self.assertRaises(AttributeError):
+            svm1 = ModelTfidfSvm()
+            svm2 = ModelTfidfSvm()
+            svm1.fit(x_train, y_mono)
+            svm2.fit(x_train, y_mono)
+            list_models = [svm1, svm2]
+            model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='vote_labels', multi_label=False)
+            model.fit(x_train, y_multi_2[cols_2])
+            series = model._get_predictions(x_train)
+            model.all_predictions(series.iloc[0])
+            for m in model.list_real_models:
+                remove_dir(os.path.split(m.model_dir)[-1])
+            remove_dir(model_dir)
+
+
+    def test12_model_aggregation_predict_model_with_full_list_classes(self):
         '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation._predict_model_with_full_list_classes'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
@@ -910,7 +958,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(list_models=[svm1, svm2, svm3], multi_label=False, aggregation_function='proba_argmax')
         self.assertEqual(model._predict_model_with_full_list_classes(svm2, x_train, return_proba=True).shape, (len(x_train), cols_all))
 
-    def test12_model_aggregation_save(self):
+    def test13_model_aggregation_save(self):
         '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
@@ -1147,7 +1195,7 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-    def test13_model_aggregation_get_and_save_metrics(self):
+    def test14_model_aggregation_get_and_save_metrics(self):
         '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
 
         # Model creation
@@ -1211,7 +1259,7 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
-    def test14_model_aggregation_reload_from_standalone(self):
+    def test15_model_aggregation_reload_from_standalone(self):
         '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAaggregation.reload_from_standalone'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')

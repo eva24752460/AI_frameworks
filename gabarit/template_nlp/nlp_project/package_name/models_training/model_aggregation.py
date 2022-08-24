@@ -62,7 +62,8 @@ class ModelAggregation(ModelClass):
         self.using_proba = using_proba
         dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
                                      'proba_argmax': {'function': self.proba_argmax, 'using_proba': True},
-                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False}}
+                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False},
+                                     'vote_labels': {'function': self.vote_labels, 'using_proba': False}}
         if isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
@@ -124,7 +125,7 @@ class ModelAggregation(ModelClass):
         self.nb_fit += 1
         # Set list_classes
 
-        self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
+        self.list_classes = list({str(label) for model in self.list_real_models for label in model.list_classes})
         self.list_classes.sort()
         self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
         # Set dict_classes based on list classes
@@ -298,6 +299,24 @@ class ModelAggregation(ModelClass):
             raise AttributeError('all_predictions can only be used with multi_label.')
 
         return np.sum(predictions,axis=0, dtype=bool).astype(int)
+
+    def vote_labels(self, predictions: np.ndarray) -> np.ndarray:
+        '''Returns the labels predicted by majority_vote for each labels
+        predicts this label (multi_label only)
+
+        Args:
+            (np.ndarray) : array of shape : (n_models, n_classes)
+        Return:
+            (np.ndarray) : predict
+        Raises:
+            AttributeError: if not multi_label
+        '''
+        if not self.multi_label:
+            raise AttributeError('all_predictions can only be used with multi_label.')
+
+        predictions = predictions.T
+        return np.array([self.majority_vote(preds) for preds in predictions])
+
 
     def save(self, json_data: Union[dict, None] = {}) -> None:
         '''Saves the model
