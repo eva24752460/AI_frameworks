@@ -504,6 +504,7 @@ class Modelaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array([0, 1, 0, 1, 2])
+        n_classes = 3
 
         # model using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -512,6 +513,7 @@ class Modelaggregation(unittest.TestCase):
         probas = model._get_probas(x_train)
         self.assertTrue(type(probas) == np.ndarray)
         self.assertEqual(len(probas), len(x_train))
+        self.assertEqual(probas.shape, (len(x_train), len(list_models), n_classes))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         probas_svm = model_svm.predict_proba(x_train)
@@ -529,6 +531,7 @@ class Modelaggregation(unittest.TestCase):
         probas = model._get_probas(x_train)
         self.assertTrue(type(probas) == np.ndarray)
         self.assertEqual(len(probas), len(x_train))
+        self.assertEqual(probas.shape, (len(x_train), len(list_models), n_classes))
         model_svm = ModelTfidfSvm()
         model_svm.fit(x_train, y_train_mono)
         probas_svm = model_svm.predict_proba(x_train)
@@ -556,9 +559,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='all_predictions')
         model.fit(x_train, y_2[cols_2])
         preds = model._get_probas(x_train)
-        self.assertEqual(len(preds), len(x_train))
-        self.assertEqual(len(preds[0]), len(list_models))
-        self.assertEqual(len(preds[0][0]), n_cols)
+        self.assertEqual(probas.shape, (len(x_train), len(list_models), n_cols))
         for m in model.list_real_models:
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
