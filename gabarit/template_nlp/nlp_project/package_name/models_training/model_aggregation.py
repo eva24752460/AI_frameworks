@@ -102,7 +102,7 @@ class ModelAggregation(ModelClass):
             models_trained = {model.trained for model in self.list_real_models}
             if False not in models_trained:
                 self._set_trained()
-                
+
     def _sort_model_type(self, list_models: List) -> None:
         '''Populate the self.list_real_models if it is None.
            Init list_real_models with each model and list_models with each model_name.
@@ -125,7 +125,6 @@ class ModelAggregation(ModelClass):
             self.list_real_models = list_real_models
             self.list_models = new_list_models
 
-
     def _set_trained(self):
         '''Sets various attributes related to the fitting of underlying models
         '''
@@ -138,7 +137,6 @@ class ModelAggregation(ModelClass):
         self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
         # Set dict_classes based on list classes
         self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
-
 
     def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
@@ -232,11 +230,11 @@ class ModelAggregation(ModelClass):
         '''
         probas = self._get_probas(x_test, **kwargs)
         # The probas of all models are averaged.
-        return np.sum(probas, axis =1)/probas.shape[1]
+        return np.sum(probas, axis=1) / probas.shape[1]
 
     def _predict_model_with_full_list_classes(self, model, x_test, return_proba: Union[bool, None] = False) -> np.array:
         '''For multi_label: Complete columns missing in the prediction of model (label missing in their list_classes)
-        
+
         Args:
             model (?): model to predict
             x_test (?): array-like or sparse matrix of shape = [n_samples, n_features]
@@ -263,7 +261,7 @@ class ModelAggregation(ModelClass):
         Returns:
             the prediction
         '''
-        proba_average = np.sum(proba, axis=0)/proba.shape[0]
+        proba_average = np.sum(proba, axis=0) / proba.shape[0]
         index_class = np.argmax(proba_average)
         return self.list_classes[index_class]
 
@@ -278,14 +276,14 @@ class ModelAggregation(ModelClass):
         '''
         labels, counts = np.unique(predictions, return_counts=True)
         votes = [(label, count) for label, count in zip(labels, counts)]
-        votes = sorted(votes, key=lambda x:x[1], reverse=True)
-        if len(votes)>1 and votes[0][1] == votes[1][1]:
+        votes = sorted(votes, key=lambda x: x[1], reverse=True)
+        if len(votes) > 1 and votes[0][1] == votes[1][1]:
             return predictions[0]
         else:
             return votes[0][0]
 
     def all_predictions(self, predictions: np.ndarray) -> np.ndarray:
-        '''Returns all labels predicted by the list of models ie returns 1 if at least one model 
+        '''Returns all labels predicted by the list of models ie returns 1 if at least one model
         predicts this label  (multi_label only)
 
         Args:
@@ -293,7 +291,7 @@ class ModelAggregation(ModelClass):
         Return:
             (np.ndarray) : predict
         '''
-        return np.sum(predictions,axis=0, dtype=bool).astype(int)
+        return np.sum(predictions, axis=0, dtype=bool).astype(int)
 
     def vote_labels(self, predictions: np.ndarray) -> np.ndarray:
         '''Returns the labels predicted by majority_vote for each labels
@@ -306,7 +304,6 @@ class ModelAggregation(ModelClass):
         '''
         predictions = predictions.T
         return np.array([self.majority_vote(preds) for preds in predictions])
-
 
     def save(self, json_data: Union[dict, None] = {}) -> None:
         '''Saves the model
