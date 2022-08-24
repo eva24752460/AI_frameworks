@@ -39,17 +39,20 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, **kwargs) -> None:
+    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, multi_label: Union[bool, None] = False, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Kwargs:
             list_models (list) : list of model to be aggregated
             aggregation_function (Callable or str) : aggregation function used
             using_proba (bool) : which object is being aggregated (the probas or the predictions).
+            multi_label (bool): If the classification is multi-labels
+
         Raises:
             ValueError : if aggregation_function object is Callable and using_proba is None
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not adapte the value using_proba
+            ValueError : if the object aggregation_function is not adapte the value multi_label
             ValueError : The 'multi_label' parameters of the list models are inconsistent with the model_aggregation
         '''
         # Init.
@@ -60,10 +63,11 @@ class ModelAggregation(ModelClass):
 
         # Get the aggregation function
         self.using_proba = using_proba
-        dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False},
-                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True},
-                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False},
-                                     'vote_labels': {'function': self.vote_labels, 'using_proba': False}}
+        self.multi_label = multi_label
+        dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False, 'multi_label': False},
+                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True, 'multi_label': False},
+                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
+                                     'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
         if isinstance(aggregation_function, (Callable)):
             if using_proba is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
@@ -74,6 +78,10 @@ class ModelAggregation(ModelClass):
                 self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
             elif using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({using_proba})")
+            if multi_label is None:
+                self.multi_label = dict_aggregation_function[aggregation_function]['multi_label']
+            elif multi_label != dict_aggregation_function[aggregation_function]['multi_label']:
+                raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with multi_label=({multi_label})")
             aggregation_function = dict_aggregation_function[aggregation_function]['function']
 
         # Manage model
@@ -254,11 +262,7 @@ class ModelAggregation(ModelClass):
             proba (np.ndarray): array of shape (nb_models, nb_classes) the probability of each model for each class
         Returns:
             the prediction
-        Raises:
-            AttributeError: if not self.using_proba
         '''
-        if not self.using_proba:
-            raise AttributeError(f"proba_argmax is not compatible with using_proba=False")
         proba_average = np.sum(proba, axis=0)/proba.shape[0]
         index_class = np.argmax(proba_average)
         return self.list_classes[index_class]
@@ -271,11 +275,7 @@ class ModelAggregation(ModelClass):
             (np.ndarray) : shape (n_models) the array containing the predictions of each models
         Returns:
             the prediction
-        Raises:
-            AttributeError: if self.using_proba
         '''
-        if self.using_proba:
-            raise AttributeError(f"majority_vote is not compatible with using_proba=True")
         labels, counts = np.unique(predictions, return_counts=True)
         votes = [(label, count) for label, count in zip(labels, counts)]
         votes = sorted(votes, key=lambda x:x[1], reverse=True)
@@ -292,12 +292,7 @@ class ModelAggregation(ModelClass):
             (np.ndarray) : array of shape : (n_models, n_classes)
         Return:
             (np.ndarray) : predict
-        Raises:
-            AttributeError: if not multi_label
         '''
-        if not self.multi_label:
-            raise AttributeError('all_predictions can only be used with multi_label.')
-
         return np.sum(predictions,axis=0, dtype=bool).astype(int)
 
     def vote_labels(self, predictions: np.ndarray) -> np.ndarray:
@@ -308,12 +303,7 @@ class ModelAggregation(ModelClass):
             (np.ndarray) : array of shape : (n_models, n_classes)
         Return:
             (np.ndarray) : predict
-        Raises:
-            AttributeError: if not multi_label
         '''
-        if not self.multi_label:
-            raise AttributeError('all_predictions can only be used with multi_label.')
-
         predictions = predictions.T
         return np.array([self.majority_vote(preds) for preds in predictions])
 
