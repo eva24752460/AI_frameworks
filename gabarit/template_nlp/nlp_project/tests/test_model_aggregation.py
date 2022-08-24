@@ -491,6 +491,32 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(m.model_dir)[-1])
         remove_dir(model_dir)
 
+        #######################################################
+        # multi_label & aggregation_funcion = 'vote_labels'
+        #######################################################
+
+        # Set vars
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+        n_classes = 3
+        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        cols = ['test1', 'test2', 'test3']
+
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
+        list_models = [svm_name, gbt]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='vote_labels', multi_label=True)
+        model.fit(x_train, y_train_multi[cols])
+        proba = model.predict(x_train, return_proba=True)
+        self.assertEqual(proba.shape, (len(x_train), len(cols)))
+        proba = model.predict('test', return_proba=True)
+        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
+        preds = model.predict(x_train, return_proba=False)
+        self.assertEqual(preds.shape, (len(x_train), len(cols)))
+        preds = model.predict('test', return_proba=False)
+        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
+        for m in model.list_real_models:
+            remove_dir(os.path.split(m.model_dir)[-1])
+        remove_dir(model_dir)
+
         # Model needs to be fitted
         with self.assertRaises(AttributeError):
             list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
@@ -591,7 +617,8 @@ class Modelaggregation(unittest.TestCase):
 
         # model not using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        function_without_proba = ModelAggregation().majority_vote
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
         model.fit(x_train, y_train_mono)
         preds = model._get_predictions(x_train)
         self.assertTrue(type(preds) == np.ndarray)
@@ -695,7 +722,7 @@ class Modelaggregation(unittest.TestCase):
 
         # multi_label
         list_models = [ModelTfidfSvm(multi_label=True), ModelTfidfGbt(multi_label=True)]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='vote_labels', multi_label=True)
         model.fit(x_train, y_train_multi[cols])
         preds = model.predict_proba(x_train)
         self.assertEqual(preds.shape, (len(x_train), len(cols)))
@@ -869,7 +896,24 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        # Set vars
+        # mono_label
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        y_mono_1 = ['test1', 'test2', 'test4']
+        y_mono_2 = ['test1', 'test3', 'test4']
+        y_mono_3 = ['test1', 'test1', 'test5']
+        cols_all = 5 # ['test1', 'test2', 'test3', 'test4', 'test5']
+        
+        svm1 = ModelTfidfSvm()
+        svm1.fit(x_train, y_mono_1)
+        svm2 = ModelTfidfSvm()
+        svm2.fit(x_train, y_mono_2)
+        svm3 = ModelTfidfSvm()
+        svm3.fit(x_train, y_mono_3)
+
+        model = ModelAggregation(list_models=[svm1, svm2, svm3], multi_label=False, aggregation_function='proba_argmax')
+        self.assertEqual(model._predict_model_with_full_list_classes(svm2, x_train, return_proba=True).shape, (len(x_train), cols_all))
+
+        # multi_label
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
         y_multi_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
         cols_1 = ['test1', 'test2', 'test4']
@@ -885,28 +929,12 @@ class Modelaggregation(unittest.TestCase):
         svm3 = ModelTfidfSvm()
         svm3.fit(x_train, y_mono_3)
 
-        # multi_label
         model = ModelAggregation(list_models=[svm1, svm2, svm3], multi_label=True, aggregation_function='all_predictions')
         self.assertEqual(model._predict_model_with_full_list_classes(svm1, x_train, return_proba=False).shape, (len(x_train), cols_all))
         self.assertEqual(model._predict_model_with_full_list_classes(svm2, x_train, return_proba=True).shape, (len(x_train), cols_all))
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
-        y_mono_1 = ['test1', 'test2', 'test4']
-        y_mono_2 = ['test1', 'test3', 'test4']
-        y_mono_3 = ['test1', 'test1', 'test5']
-        cols_all = 5 # ['test1', 'test2', 'test3', 'test4', 'test5']
 
-        svm1 = ModelTfidfSvm()
-        svm1.fit(x_train, y_mono_1)
-        svm2 = ModelTfidfSvm()
-        svm2.fit(x_train, y_mono_2)
-        svm3 = ModelTfidfSvm()
-        svm3.fit(x_train, y_mono_3)
 
-        # mono_label
-        model = ModelAggregation(list_models=[svm1, svm2, svm3], multi_label=False, aggregation_function='proba_argmax')
-        self.assertEqual(model._predict_model_with_full_list_classes(svm2, x_train, return_proba=True).shape, (len(x_train), cols_all))
 
     def test13_model_aggregation_save(self):
         '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
