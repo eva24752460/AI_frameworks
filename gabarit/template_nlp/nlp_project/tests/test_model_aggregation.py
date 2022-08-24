@@ -902,7 +902,7 @@ class Modelaggregation(unittest.TestCase):
         y_mono_2 = ['test1', 'test3', 'test4']
         y_mono_3 = ['test1', 'test1', 'test5']
         cols_all = 5 # ['test1', 'test2', 'test3', 'test4', 'test5']
-        
+
         svm1 = ModelTfidfSvm()
         svm1.fit(x_train, y_mono_1)
         svm2 = ModelTfidfSvm()
@@ -932,9 +932,6 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(list_models=[svm1, svm2, svm3], multi_label=True, aggregation_function='all_predictions')
         self.assertEqual(model._predict_model_with_full_list_classes(svm1, x_train, return_proba=False).shape, (len(x_train), cols_all))
         self.assertEqual(model._predict_model_with_full_list_classes(svm2, x_train, return_proba=True).shape, (len(x_train), cols_all))
-
-
-
 
     def test13_model_aggregation_save(self):
         '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
