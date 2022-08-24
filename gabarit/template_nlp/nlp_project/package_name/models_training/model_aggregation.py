@@ -130,18 +130,15 @@ class ModelAggregation(ModelClass):
         '''
         self.trained = True
         self.nb_fit += 1
-        # Set list_classes
 
-        self.list_classes = list(label for model in self.list_real_models for label in model.list_classes})
-        dict_label = {'str': [], 'other': []}
-        for label in self.list_classes:
-            if isinstance(label, str):
-                dict_label['str'].append(label)
-            else:
-                dict_label['other'].append(int(label))
-        dict_label['str'].sort()
-        dict_label['other'].sort()
-        self.list_classes = dict_label['other'] + dict_label['str']
+        # Set list_classes
+        self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
+        list_label_str = [label for label in self.list_classes if isinstance(label, str)]
+        list_label_other = [label for label in self.list_classes if label not in list_label_str]
+        list_label_str.sort()
+        list_label_other.sort()
+        self.list_classes = list_label_other + list_label_str
+
         # self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
         # Set dict_classes based on list classes
         self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
