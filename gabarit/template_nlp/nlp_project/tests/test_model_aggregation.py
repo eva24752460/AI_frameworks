@@ -787,71 +787,31 @@ class Modelaggregation(unittest.TestCase):
         y_train_mono = np.array([0, 1, 0, 1, 2])
         n_classes = 3
 
-        # model using_proba
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
         model.fit(x_train, y_train_mono)
         probas = model._get_probas(x_train)
         self.assertTrue(isinstance(probas, np.ndarray))
         self.assertEqual(len(probas), len(x_train))
         self.assertEqual(probas.shape, (len(x_train), len(list_models), n_classes))
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        probas_svm = model_svm.predict_proba(x_train)
+        svm = ModelTfidfSvm()
+        naive = ModelTfidfSuperDocumentsNaive()
+        svm.fit(x_train, y_train_mono)
+        naive.fit(x_train, y_train_mono)
+        probas_svm = svm.predict_proba(x_train)
+        probas_naive = naive.predict_proba(x_train)
         self.assertEqual(probas[0].all(), probas_svm.all())
+        self.assertEqual(probas[1].all(), probas_naive.all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        # aggregation_funcion is Callable and not using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().majority_vote
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.fit(x_train, y_train_mono)
-        probas = model._get_probas(x_train)
-        self.assertTrue(isinstance(probas, np.ndarray))
-        self.assertEqual(len(probas), len(x_train))
-        self.assertEqual(probas.shape, (len(x_train), len(list_models), n_classes))
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        probas_svm = model_svm.predict_proba(x_train)
-        self.assertEqual(probas[0].all(), probas_svm.all())
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        # multi_label
-        svm1 = ModelTfidfSvm(multi_label=True)
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
-        y_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
-        cols_1 = ['test1', 'test2', 'test4']
-        svm1.fit(x_train, y_1[cols_1])
-
-        svm2 = ModelTfidfSvm(multi_label=True)
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
-        y_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
-        cols_2 = ['test1', 'test3', 'test4']
-        svm2.fit(x_train, y_2[cols_2])
-        n_classes = 4 # ['test1', 'test2', 'test3', 'test4']
-
-        list_models = [svm1, svm2]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='all_predictions')
-        model.fit(x_train, y_2[cols_2])
-        preds = model._get_probas(x_train)
-        self.assertEqual(preds.shape, (len(x_train), len(list_models), n_classes))
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
+        remove_dir(svm.model_dir)
+        remove_dir(naive.model_dir)
 
         # Model needs to be fitted
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        model = ModelAggregation(model_dir=model_dir)
         with self.assertRaises(AttributeError):
             model._get_probas('test')
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
     def test07_model_aggregation_get_predictions(self):
@@ -863,65 +823,54 @@ class Modelaggregation(unittest.TestCase):
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
         y_train_mono = np.array(['test1', 'test2', 'test1', 'test2', 'test0'])
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
-        cols = ['test1', 'test2', 'test3']
-        all_multi_classes = 4 # [test0, test1, test2, test3]
+        y_train_multi_1 = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
+        y_train_multi_2 = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test3': [1, 0, 0, 0, 0], 'test4': [0, 0, 0, 1, 0]})
+        cols_1 = ['test1', 'test2', 'test3']
+        cols_2 = ['test1', 'test3', 'test4']
+        target_get_pred_svm = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0], [0, 0, 0, 0]])
+        target_get_pred_gbt = np.array([[0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1], [0, 0, 0, 0]])
+        n_classes_all = 4 # [test0, test1, test2, test3]
 
-        # model not using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().majority_vote
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.fit(x_train, y_train_mono)
-        preds = model._get_predictions(x_train)
-        self.assertTrue(isinstance(preds, np.ndarray))
-        self.assertEqual(len(preds), len(x_train))
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        preds_svm = model_svm.predict(x_train)
-        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        # model using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_mono)
-        preds = model._get_predictions(x_train)
-        self.assertTrue(isinstance(preds, np.ndarray))
-        self.assertEqual(len(preds), len(x_train))
-        model_svm = ModelTfidfSvm()
-        model_svm.fit(x_train, y_train_mono)
-        preds_svm = model_svm.predict(x_train)
-        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        # multi_label
-        naive = ModelTfidfSuperDocumentsNaive()
-        naive.fit(x_train, y_train_mono)
-        list_models = [ModelTfidfSvm(multi_label=True), naive]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        preds = model._get_predictions(x_train)
-        self.assertTrue(isinstance(preds, np.ndarray))
-        self.assertEqual(len(preds), len(x_train))
-        self.assertEqual(len(preds[0][0]), all_multi_classes)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-        remove_dir(model_svm.model_dir)
-
-        # Model needs to be fitted
+        # mono_label
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-        with self.assertRaises(AttributeError):
-            model._get_predictions('test')
+        model.fit(x_train, y_train_mono)
+        preds = model._get_predictions(x_train)
+        self.assertTrue(isinstance(preds, np.ndarray))
+        self.assertEqual(len(preds), len(x_train))
+        svm = ModelTfidfSvm()
+        naive = ModelTfidfSuperDocumentsNaive()
+        svm.fit(x_train, y_train_mono)
+        naive.fit(x_train, y_train_mono)
+        preds_svm = svm.predict(x_train)
+        preds_naive = naive.predict(x_train)
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
+        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == preds_naive).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
+        remove_dir(model_dir)
+        remove_dir(svm.model_dir)
+        remove_dir(naive.model_dir)
+
+        # multi_label
+        svm = ModelTfidfSvm(multi_label=True)
+        svm.fit(x_train, y_train_multi_1[cols_1])
+        list_models = [svm, ModelTfidfGbt(multi_label=True)]
+        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
+        model.fit(x_train, y_train_multi_2[cols_2])
+        preds = model._get_predictions(x_train)
+        self.assertTrue(isinstance(preds, np.ndarray))
+        self.assertEqual(preds.shape, (len(x_train), len(list_models), n_classes_all))
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == target_get_pred_svm).all())
+        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == target_get_pred_gbt).all())
+        for submodel in model.list_real_models:
+            remove_dir(os.path.split(submodel.model_dir)[-1])
+        remove_dir(model_dir)
+
+        # Model needs to be fitted
+        model = ModelAggregation(model_dir=model_dir)
+        with self.assertRaises(AttributeError):
+            model._get_predictions('test')
         remove_dir(model_dir)
 
     def test08_model_aggregation_predict_proba(self):
