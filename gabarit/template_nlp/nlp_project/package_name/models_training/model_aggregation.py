@@ -51,8 +51,8 @@ class ModelAggregation(ModelClass):
         Raises:
             ValueError : if aggregation_function object is Callable and using_proba is None
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
-            ValueError : if the object aggregation_function is not adapte the value using_proba
-            ValueError : if the object aggregation_function is not adapte the value multi_label
+            ValueError : if the object aggregation_function is not compatible with value using_proba
+            ValueError : if the object aggregation_function is not compatible with value multi_label
             ValueError : The 'multi_label' parameters of the list models are inconsistent with the model_aggregation
         '''
         # Init.
