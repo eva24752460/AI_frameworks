@@ -74,6 +74,8 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
+        model_name = 'test_model_name'
+
         ############################################
         # Init., test all parameters
         ############################################
@@ -84,7 +86,7 @@ class Modelaggregation(unittest.TestCase):
         # not multi_label
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, multi_label=False, aggregation_function='proba_argmax')
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=True, multi_label=False, aggregation_function='proba_argmax')
         self.assertTrue(os.path.isdir(model_dir))
         self.assertFalse(model.multi_label)
         self.assertTrue(model.using_proba)
@@ -108,8 +110,9 @@ class Modelaggregation(unittest.TestCase):
         # not multi_label
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, multi_label=False, aggregation_function='majority_vote')
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=False, multi_label=False, aggregation_function='majority_vote')
         self.assertTrue(os.path.isdir(model_dir))
+        self.assertEqual(model.model_name, model_name)
         self.assertFalse(model.multi_label)
         self.assertFalse(model.using_proba)
         self.assertTrue(isinstance(model.list_models, list))
@@ -132,8 +135,9 @@ class Modelaggregation(unittest.TestCase):
         # multi_label
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=False, multi_label=True, aggregation_function='all_predictions')
         self.assertTrue(os.path.isdir(model_dir))
+        self.assertEqual(model.model_name, model_name)
         self.assertTrue(model.multi_label)
         self.assertFalse(model.using_proba)
         self.assertTrue(isinstance(model.list_models, list))
@@ -156,8 +160,9 @@ class Modelaggregation(unittest.TestCase):
         # multi_label
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=False, multi_label=True, aggregation_function='vote_labels')
         self.assertTrue(os.path.isdir(model_dir))
+        self.assertEqual(model.model_name, model_name)
         self.assertTrue(model.multi_label)
         self.assertFalse(model.using_proba)
         self.assertTrue(isinstance(model.list_models, list))
@@ -212,10 +217,9 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         # if aggregation_function object is Callable and using_proba is None
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
         function_test = ModelAggregation().aggregation_function
         with self.assertRaises(ValueError):
-            model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=None, aggregation_function=function_test)
+            model = ModelAggregation(model_dir=model_dir, using_proba=None, aggregation_function=function_test)
         remove_dir(model_dir)
 
         # if 'multi_label' inconsistent
@@ -230,16 +234,15 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        model_name = 'test_model_name'
-
         # list_models = [model, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, model_name=model_name, aggregation_function='proba_argmax', using_proba=True)
+        model = ModelAggregation(model_dir=model_dir)
         model._sort_model_type(list_models)
-        self.assertEqual(model.list_real_models, list_models)
-        self.assertEqual(model.list_models[0], svm_name)
+        self.assertTrue(isinstance(model.list_real_models[0], type(svm)))
+        self.assertTrue(isinstance(model.list_real_models[1], type(gbt)))
         self.assertEqual(len(model.list_models), len(list_models))
+        self.assertEqual(model.list_models, [svm_name, gbt_name])
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -247,12 +250,12 @@ class Modelaggregation(unittest.TestCase):
         # list_models = [model_name, model_name]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, model_name=model_name, aggregation_function='majority_vote', using_proba=False)
+        model = ModelAggregation(model_dir=model_dir)
         model._sort_model_type(list_models)
         self.assertTrue(isinstance(model.list_real_models[0], type(svm)))
         self.assertTrue(isinstance(model.list_real_models[1], type(gbt)))
-        self.assertEqual(model.list_models, [svm_name, gbt_name])
         self.assertEqual(len(model.list_models), len(list_models))
+        self.assertEqual(model.list_models, [svm_name, gbt_name])
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -260,11 +263,12 @@ class Modelaggregation(unittest.TestCase):
         # list_models = [model_name, model]
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir)
+        model._sort_model_type(list_models)
         self.assertTrue(isinstance(model.list_real_models[0], type(svm)))
         self.assertTrue(isinstance(model.list_real_models[1], type(gbt)))
-        self.assertEqual(model.list_models[0], svm_name)
         self.assertEqual(len(model.list_models), len(list_models))
+        self.assertEqual(model.list_models, [svm_name, gbt_name])
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -277,66 +281,68 @@ class Modelaggregation(unittest.TestCase):
 
         # set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 2])
-        n_classes_mono = 3
-        dict_classes_mono = {0: 0, 1: 1, 2: 2}
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
-        cols = ['test1', 'test2', 'test3']
-        n_classes_multi = 3
-        dict_classes_multi = {0: 'test1', 1: 'test2', 2: 'test3'}
+        y_train_int = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'oui'])
+        n_classes_int = 3
+        n_classes_str = 2
+        n_classes_all = 5
+        dict_classes_int = {0: 0, 1: 1, 2: 2}
+        dict_classes_str = {0: 'non', 1: 'oui'}
+        dict_classes_all = {0: 0, 1: 1, 2: 2, 3: 'non', 4: 'oui'}
 
-        # mono label
+        # int
         svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='proba_argmax', multi_label=False)
+        model = ModelAggregation(model_dir=model_dir)
         self.assertFalse(model.trained)
         self.assertTrue(model.list_classes is None)
         self.assertTrue(model.dict_classes is None)
-        svm.fit(x_train, y_train_mono)
-        gbt.fit(x_train, y_train_mono)
+        svm.fit(x_train, y_train_int)
+        gbt.fit(x_train, y_train_int)
         model.list_real_models = None
         model._sort_model_type([svm, gbt])
         model._set_trained()
         self.assertTrue(model.trained)
-        self.assertTrue(len(model.list_classes), n_classes_mono)
-        self.assertEqual(model.dict_classes, dict_classes_mono)
+        self.assertTrue(len(model.list_classes), n_classes_int)
+        self.assertEqual(model.dict_classes, dict_classes_int)
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
-        # multi label
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
+        # str
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='all_predictions', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir)
         self.assertFalse(model.trained)
         self.assertTrue(model.list_classes is None)
         self.assertTrue(model.dict_classes is None)
-        svm.fit(x_train, y_train_multi[cols])
-        gbt.fit(x_train, y_train_multi[cols])
+        svm.fit(x_train, y_train_str)
+        gbt.fit(x_train, y_train_str)
         model.list_real_models = None
         model._sort_model_type([svm, gbt])
         model._set_trained()
         self.assertTrue(model.trained)
-        self.assertTrue(len(model.list_classes), n_classes_multi)
-        self.assertEqual(model.dict_classes, dict_classes_multi)
+        self.assertTrue(len(model.list_classes), n_classes_str)
+        self.assertEqual(model.dict_classes, dict_classes_str)
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(gbt_param={'multi_label': True})
+        # int and str
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
         list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='all_predictions', multi_label=True)
+        model = ModelAggregation(model_dir=model_dir)
         self.assertFalse(model.trained)
         self.assertTrue(model.list_classes is None)
         self.assertTrue(model.dict_classes is None)
-        svm.fit(x_train, y_train_mono)
-        gbt.fit(x_train, y_train_multi[cols])
+        svm.fit(x_train, y_train_int)
+        gbt.fit(x_train, y_train_str)
         model.list_real_models = None
         model._sort_model_type([svm, gbt])
         model._set_trained()
         self.assertTrue(model.trained)
-        self.assertTrue(len(model.list_classes), n_classes_multi+n_classes_mono)
-        self.assertEqual(len(model.dict_classes), n_classes_multi+n_classes_mono)
+        self.assertTrue(len(model.list_classes), n_classes_all)
+        self.assertEqual(model.dict_classes, dict_classes_all)
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
