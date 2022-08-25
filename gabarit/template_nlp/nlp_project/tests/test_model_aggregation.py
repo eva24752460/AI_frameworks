@@ -68,6 +68,23 @@ class Modelaggregation(unittest.TestCase):
         gbt_name = os.path.split(gbt.model_dir)[-1]
         return svm, gbt, svm_name, gbt_name
 
+    # Create and fit models
+    def mock_model_mono_multi_int_str_fitted(self, dict_var: dict):
+        # create models
+        model_mono_int, model_mono_str, _, _ = self.create_svm_gbt()
+        model_multi1, model_multi2, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
+
+        x_train = dict_var['x_train']
+        y_train_multi_1 = dict_var['y_train_multi_1']
+        y_train_multi_2 = dict_var['y_train_multi_2']
+
+        model_mono_int.fit(x_train, dict_var['y_train_int'])
+        model_mono_str.fit(x_train, dict_var['y_train_str'])
+        model_multi1.fit(x_train, y_train_multi_1[dict_var['cols_1']])
+        model_multi2.fit(x_train, y_train_multi_2[dict_var['cols_2']])
+
+        return model_mono_int, model_mono_str, model_multi1, model_multi2
+
     def test01_model_aggregation_init(self):
         '''Test of {{package_name}}.models_training.model_aggregation.ModelAggregation.__init__'''
 
@@ -456,155 +473,301 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        ######################################################
-        # mono_label & aggregation_funcion is Callable
-        ######################################################
-
         # Set vars
         x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'none'])
-        n_classes = 3
+        x_test = np.array(["ici test", "là, rien!"])
+        y_train_int = np.array([0, 1, 0, 1, 2])
+        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'oui'])
+        y_train_multi_1 = pd.DataFrame({'test1': [0, 1, 0, 1, 0], 'test2': [1, 0, 0, 1, 0], 'test3': [0, 0, 0, 1, 1]})
+        y_train_multi_2 = pd.DataFrame({'oui': [0, 1, 0, 1, 0], 'non': [1, 0, 1, 0, 0]})
+        cols_1 = ['test1', 'test2', 'test3']
+        cols_2 = ['oui', 'non']
+        cols_all = ['non', 'oui', 'test1', 'test2', 'test3']
+        n_classes_int = 3
+        n_classes_str = 2
+        n_classes_int_str = n_classes_int + n_classes_str
+        # Set dict_var (argument for mock_model_mono_multi_int_str_fitted function)
+        dict_var = {'x_train': x_train, 'y_train_int': y_train_int, 'y_train_str': y_train_str,
+                    'y_train_multi_1': y_train_multi_1, 'y_train_multi_2': y_train_multi_2, 'cols_1': cols_1, 'cols_2': cols_2}
 
-        # using_proba
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm, gbt]
-        def function_with_proba(proba):
-            proba_average = np.sum(proba, axis=0)/proba.shape[0]
-            index_class = np.argmax(proba_average)
-            return index_class
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=function_with_proba)
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertAlmostEqual(preds.sum(), len(x_train))
+        # Set target (predict with x_test)
+        # mono_label: models fitted with y_train_int
+        target_int = np.array([1, 2])
+        # mono_label: models fitted with y_train_str
+        target_str = np.array(['non','oui'])
+        # mono_label: models fitted with y_train_int and y_train_str
+        target_probas_int_svm = np.array([[0, 1, 0], [0, 0, 1]])
+        # multi_label: models fitted with y_train_int
+        target_multi_int = np.array([[0, 1, 0], [0, 0, 1]])
+        # multi_label: models fitted with y_train_multi_1
+        target_multi_1 = np.array([[0, 1, 0, 1, 0], [1, 0, 0, 1, 0], [0, 0, 0, 1, 1]])
 
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        #################################################
+        # aggregation_function: majority_vote
+        # not usint_proba
+        # not multi_label
+        #################################################
+
+        model_mono_int1, model_mono_str1, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+        model_mono_int2, model_mono_str2, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+
+        # All models have the same labels
+        list_models_int = [model_mono_int1, model_mono_int2]
+        model_int = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=False, aggregation_function='majority_vote')
+        # not return proba
+        preds = model_int.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertEquals(preds.all(), target_int.all())
+        # return proba
+        probas = model_int.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
         remove_dir(model_dir)
 
-        # not using_proba
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        function_without_proba = ModelAggregation().majority_vote
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
+        # The models have different labels
+        list_models_int_str = [model_mono_int1, model_mono_str1, model_mono_str2]
+        model_int_str = ModelAggregation(model_dir=model_dir, list_models=list_models_int_str, using_proba=False, multi_label=False, aggregation_function='majority_vote')
+        preds = model_int_str.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertTrue((preds == target_str).all())
+        # return proba
+        probas = model_int_str.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int_str))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
+        remove_dir(model_dir)
+        remove_dir(model_mono_int1.model_dir)
+        remove_dir(model_mono_int2.model_dir)
+        remove_dir(model_mono_str1.model_dir)
+        remove_dir(model_mono_str2.model_dir)
 
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        #################################################
+        # aggregation_function: proba_argmax
+        # usint_proba
+        # not multi_label
+        #################################################
+
+        model_mono_int1, model_mono_str1, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+        model_mono_int2, model_mono_str2, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+
+        # All models have the same labels
+        list_models_int = [model_mono_int1, model_mono_int2]
+        model_int = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=True, multi_label=False, aggregation_function='proba_argmax')
+        # not return proba
+        preds = model_int.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertEquals(preds.all(), target_int.all())
+        # return proba
+        probas = model_int.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
         remove_dir(model_dir)
 
-        ######################################################
-        # mono_label & aggregation_funcion = 'majority_vote'
-        ######################################################
+        # The models have different labels
+        list_models_int_str = [model_mono_int1, model_mono_str1, model_mono_str2]
+        model_int_str = ModelAggregation(model_dir=model_dir, list_models=list_models_int_str, using_proba=True, multi_label=False, aggregation_function='proba_argmax')
+        # not return proba
+        preds = model_int_str.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertTrue((preds == target_str).all())
+        # return proba
+        probas = model_int_str.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int_str))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
+        remove_dir(model_dir)
+        remove_dir(model_mono_int1.model_dir)
+        remove_dir(model_mono_int2.model_dir)
+        remove_dir(model_mono_str1.model_dir)
+        remove_dir(model_mono_str2.model_dir)
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_str = np.array(['oui', 'non', 'oui', 'non', 'none'])
-        n_classes = 3
+        #################################################
+        # aggregation_function: all_predictions
+        # not usint_proba
+        # mono and multi_label
+        #################################################
 
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
+        # Set target
+        # models fitted with y_train_int and y_train_str
+        target_multi_int_str_all = np.array([[0, 1, 0, 1, 0], [0, 0, 1, 0, 1]])
+        # models fitted with y_train_multi_1 and y_train_multi_2
+        target_multi_1_2_all = np.array([[0, 1, 0, 1, 0], [1, 0, 0, 1, 0], [0, 0, 0, 1, 1], [0, 1, 0, 1, 0], [1, 0, 1, 0, 0]])
+        # models fitted with y_train_str and y_train_multi_1
+        target_multi_1_str_all = np.array([[0, 1, 0, 1, 0], [1, 0, 0, 1, 0], [0, 0, 0, 1, 1], [0, 1, 0, 1, 0], [1, 0, 1, 0, 1]])
 
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        model_mono_int1, model_mono_str1, model_multi_cols1_1, model_multi_cols2_1 = self.mock_model_mono_multi_int_str_fitted(dict_var)
+        model_mono_int2, model_mono_str2, model_multi_cols1_2, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+
+        ##### All models have the same labels (mono_label)
+        list_models_int = [model_mono_int1, model_mono_int2]
+        model_multi_int = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        # not return proba
+        preds = model_multi_int.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), n_classes_int))
+        self.assertEquals(preds.all(), target_multi_int.all())
+        # return proba
+        probas = model_multi_int.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_multi_int.all())
         remove_dir(model_dir)
 
-        ######################################################
-        # mono_label & aggregation_funcion = 'proba_argmax'
-        ######################################################
-
-        # list_models = [model_name, model]
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.fit(x_train, y_train_str)
-        preds = model.predict(x_train, return_proba=True)
-        self.assertEqual(preds.shape, (len(x_train), n_classes))
-        self.assertFalse(preds[0] in y_train_str)
-        self.assertAlmostEqual(preds.sum(), len(x_train))
-
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train),))
-        self.assertTrue(preds[0] in y_train_str)
-        preds = model.predict('ceci est un test', return_proba=False)
-        self.assertEqual(preds, 'oui')
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        ##### All models have the same labels (multi_label)
+        list_models_int = [model_multi_cols1_1, model_multi_cols1_2]
+        model_multi_cols = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        # not return proba
+        preds = model_multi_cols.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_1)))
+        self.assertEquals(preds.all(), target_multi_1.all())
+        # return proba
+        probas = model_multi_cols.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_1)))
+        self.assertAlmostEqual(probas.all(), target_multi_1.all())
         remove_dir(model_dir)
 
-        #######################################################
-        # multi_label & aggregation_funcion = 'all_predictions'
-        #######################################################
-
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        n_classes = 3
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
-        cols = ['test1', 'test2', 'test3']
-
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        proba = model.predict(x_train, return_proba=True)
-        self.assertEqual(proba.shape, (len(x_train), len(cols)))
-        proba = model.predict('test', return_proba=True)
-        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train), len(cols)))
-        preds = model.predict('test', return_proba=False)
-        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        ##### The models have different labels (mono_label)
+        list_models_int_str = [model_mono_int1, model_mono_str1, model_mono_str2]
+        model_int_str = ModelAggregation(model_dir=model_dir, list_models=list_models_int_str, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        # not return proba
+        preds = model_int_str.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), n_classes_int_str))
+        self.assertTrue((preds == target_multi_int_str_all).all())
+        # return proba
+        probas = model_int_str.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int_str))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_multi_int_str_all.all())
         remove_dir(model_dir)
 
-        #######################################################
-        # multi_label & aggregation_funcion = 'vote_labels'
-        #######################################################
-
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        n_classes = 3
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test2': [1, 0, 0, 0, 0], 'test3': [0, 0, 0, 1, 0]})
-        cols = ['test1', 'test2', 'test3']
-
-        svm, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='vote_labels', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        proba = model.predict(x_train, return_proba=True)
-        self.assertEqual(proba.shape, (len(x_train), len(cols)))
-        proba = model.predict('test', return_proba=True)
-        self.assertEqual([elem for elem in proba], [elem for elem in model.predict(['test'], return_proba=True)[0]])
-        preds = model.predict(x_train, return_proba=False)
-        self.assertEqual(preds.shape, (len(x_train), len(cols)))
-        preds = model.predict('test', return_proba=False)
-        self.assertEqual([elem for elem in preds], [elem for elem in model.predict(['test'], return_proba=False)[0]])
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        ##### The models have different labels (multi_label)
+        list_models_int = [model_multi_cols1_1, model_multi_cols1_2, model_multi_cols2_1]
+        model_multi_cols_diff = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        # not return proba
+        preds = model_multi_cols_diff.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_all)))
+        self.assertEquals(preds.all(), target_multi_1_2_all.all())
+        # return proba
+        probas = model_multi_cols_diff.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_all)))
+        self.assertAlmostEqual(probas.all(), target_multi_1_2_all.all())
         remove_dir(model_dir)
+
+        ##### The models have different labels (mono_label and multi_label)
+        list_models_int = [model_mono_str1, model_multi_cols1_1]
+        model_multi_mono = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='all_predictions')
+        # not return proba
+        preds = model_multi_mono.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_1) + n_classes_str))
+        self.assertEquals(preds.all(), target_multi_1_str_all.all())
+        # return proba
+        probas = model_multi_mono.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_1) + n_classes_str))
+        self.assertAlmostEqual(probas.all(), target_multi_1_str_all.all())
+        remove_dir(model_dir)
+        remove_dir(model_mono_int1.model_dir)
+        remove_dir(model_mono_int2.model_dir)
+        remove_dir(model_mono_str1.model_dir)
+        remove_dir(model_mono_str2.model_dir)
+        remove_dir(model_multi_cols1_1.model_dir)
+        remove_dir(model_multi_cols2_1.model_dir)
+        remove_dir(model_multi_cols1_2.model_dir)
+
+        #################################################
+        # aggregation_function: vote_labels
+        # not usint_proba
+        # mono and multi_label
+        #################################################
+
+        # Set target
+        # models fitted with y_train_int *2 and y_train_str
+        target_multi_int_str_vote = np.array([[0, 1, 0, 0, 0], [0, 0, 1, 0, 0]])
+        # models fitted with y_train_multi_1 *2 and y_train_multi_2
+        target_multi_1_2_vote = np.array([[0, 1, 0, 1, 0], [1, 0, 0, 1, 0], [0, 0, 0, 1, 1], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]])
+        # models fitted with y_train_str *2 and y_train_multi_1
+        target_multi_1_str_vote = np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 1, 0, 1, 0], [1, 0, 1, 0, 1]])
+
+        model_mono_int1, model_mono_str1, model_multi_cols1_1, model_multi_cols2_1 = self.mock_model_mono_multi_int_str_fitted(dict_var)
+        model_mono_int2, model_mono_str2, model_multi_cols1_2, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+
+        ##### All models have the same labels (mono_label)
+        list_models_int = [model_mono_int1, model_mono_int2]
+        model_multi_int = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        # not return proba
+        preds = model_multi_int.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), n_classes_int))
+        self.assertEquals(preds.all(), target_multi_int.all())
+        # return proba
+        probas = model_multi_int.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_multi_int.all())
+        remove_dir(model_dir)
+
+        ##### All models have the same labels (multi_label)
+        list_models_int = [model_multi_cols1_1, model_multi_cols1_2]
+        model_multi_cols = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        # not return proba
+        preds = model_multi_cols.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_1)))
+        self.assertEquals(preds.all(), target_multi_1.all())
+        # return proba
+        probas = model_multi_cols.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_1)))
+        self.assertAlmostEqual(probas.all(), target_multi_1.all())
+        remove_dir(model_dir)
+
+        ##### The models have different labels (mono_label)
+        list_models_int_str = [model_mono_int1, model_mono_int2, model_mono_str1]
+        model_int_str = ModelAggregation(model_dir=model_dir, list_models=list_models_int_str, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        # not return proba
+        preds = model_int_str.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), n_classes_int_str))
+        self.assertTrue((preds == target_multi_int_str_vote).all())
+        # return proba
+        probas = model_int_str.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int_str))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_multi_int_str_vote.all())
+        remove_dir(model_dir)
+
+        ##### The models have different labels (multi_label)
+        list_models_int = [model_multi_cols1_1, model_multi_cols1_2, model_multi_cols2_1]
+        model_multi_cols_diff = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        # not return proba
+        preds = model_multi_cols_diff.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_all)))
+        self.assertEquals(preds.all(), target_multi_1_2_vote.all())
+        # return proba
+        probas = model_multi_cols_diff.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_all)))
+        self.assertAlmostEqual(probas.all(), target_multi_1_2_vote.all())
+        remove_dir(model_dir)
+
+        ##### The models have different labels (mono_label and multi_label)
+        list_models_int = [model_mono_str1, model_mono_str2, model_multi_cols1_1]
+        model_multi_mono = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=False, multi_label=True, aggregation_function='vote_labels')
+        # not return proba
+        preds = model_multi_mono.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test), len(cols_1) + n_classes_str))
+        self.assertEquals(preds.all(), target_multi_1_str_vote.all())
+        # return proba
+        probas = model_multi_mono.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), len(cols_1) + n_classes_str))
+        self.assertAlmostEqual(probas.all(), target_multi_1_str_vote.all())
+        remove_dir(model_dir)
+        remove_dir(model_mono_int1.model_dir)
+        remove_dir(model_mono_int2.model_dir)
+        remove_dir(model_mono_str1.model_dir)
+        remove_dir(model_mono_str2.model_dir)
+        remove_dir(model_multi_cols1_1.model_dir)
+        remove_dir(model_multi_cols2_1.model_dir)
+        remove_dir(model_multi_cols1_2.model_dir)
+
+        ############################################
+        # Error
+        ############################################
 
         # Model needs to be fitted
         list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
