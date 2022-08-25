@@ -69,7 +69,20 @@ class Modelaggregation(unittest.TestCase):
         return svm, gbt, svm_name, gbt_name
 
     # Create and fit models
-    def mock_model_mono_multi_int_str_fitted(self, dict_var: dict):
+    def mock_model_mono_multi_int_str_fitted(self, dict_var: dict = None):
+        if dict is None:
+            # Set vars
+            x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
+            y_train_int = np.array([0, 1, 0, 1, 2])
+            y_train_str = np.array(['oui', 'non', 'oui', 'non', 'oui'])
+            y_train_multi_1 = pd.DataFrame({'test1': [0, 1, 0, 1, 0], 'test2': [1, 0, 0, 1, 0], 'test3': [0, 0, 0, 1, 1]})
+            y_train_multi_2 = pd.DataFrame({'oui': [0, 1, 0, 1, 0], 'non': [1, 0, 1, 0, 0]})
+            cols_1 = ['test1', 'test2', 'test3']
+            cols_2 = ['oui', 'non']
+            # Set dict_var (argument for mock_model_mono_multi_int_str_fitted function)
+            dict_var = {'x_train': x_train, 'y_train_int': y_train_int, 'y_train_str': y_train_str,
+                        'y_train_multi_1': y_train_multi_1, 'y_train_multi_2': y_train_multi_2, 'cols_1': cols_1, 'cols_2': cols_2}
+
         # create models
         model_mono_int, model_mono_str, _, _ = self.create_svm_gbt()
         model_multi1, model_multi2, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
@@ -1089,7 +1102,6 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
-
     def test14_model_aggregation_save(self):
         '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
 
@@ -1097,78 +1109,11 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         ######################################################
-        #  aggregation_function is Callable
-        ######################################################
-
-        # using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function=lambda x: np.argmax(sum(x), axis=1))
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # not using_proba
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        function_without_proba = ModelAggregation().majority_vote
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function=function_without_proba)
-        model.save(json_data={'test': 10})
-
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        ######################################################
         # aggregation_function = 'majority_vote'
         ######################################################
 
-        # list_models = [model, model]
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
+        svm, gbt, _, _ = self.create_svm_gbt()
+        model = ModelAggregation(model_dir=model_dir, list_models=[svm, gbt])
         model.save(json_data={'test': 10})
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
         self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
@@ -1191,137 +1136,8 @@ class Modelaggregation(unittest.TestCase):
         self.assertTrue('multi_label' in configs.keys())
         self.assertTrue('level_save' in configs.keys())
         self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model_name]
-        _, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt_name]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # list_models = [model_name, model]
-        _, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='majority_vote')
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        ######################################################
-        # aggregation_function = 'proba_argmax'
-        ######################################################
-
-        # list_models = [model_name, model]
-        _, gbt, svm_name, gbt_name = self.create_svm_gbt()
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
-        self.assertEqual(configs['librairie'], None)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        ######################################################
-        # Multi label
-        ######################################################
-
-        _, gbt, svm_name, gbt_name = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        list_models = [svm_name, gbt]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, aggregation_function='all_predictions', multi_label=True)
-        model.save(json_data={'test': 10})
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'configurations.json')))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"aggregation_function.pkl")))
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, f"{model.model_name}.pkl")))
-        with open(os.path.join(model.model_dir, 'configurations.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self.assertEqual(configs['test'], 10)
-        self.assertTrue('mainteners' in configs.keys())
-        self.assertTrue('date' in configs.keys())
-        self.assertTrue('package_version' in configs.keys())
-        self.assertEqual(configs['package_version'], utils.get_package_version())
-        self.assertTrue('model_name' in configs.keys())
-        self.assertTrue('model_dir' in configs.keys())
-        self.assertTrue('trained' in configs.keys())
-        self.assertTrue('nb_fit' in configs.keys())
-        self.assertTrue('list_classes' in configs.keys())
-        self.assertTrue('dict_classes' in configs.keys())
-        self.assertTrue('x_col' in configs.keys())
-        self.assertTrue('y_col' in configs.keys())
-        self.assertTrue('multi_label' in configs.keys())
-        self.assertTrue('level_save' in configs.keys())
-        self.assertTrue('librairie' in configs.keys())
+        self.assertTrue('list_models' in configs.keys())
+        self.assertTrue('using_proba' in configs.keys())
         self.assertEqual(configs['librairie'], None)
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
@@ -1341,9 +1157,8 @@ class Modelaggregation(unittest.TestCase):
         y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1], 'test2': [1, 0, 0, 0], 'test3': [0, 0, 0, 1]})
         cols = ['test1', 'test2', 'test3']
 
-        # get_and_save_metrics - mono-label
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=True, aggregation_function='proba_argmax')
+        svm, gbt, _, _ = self.create_svm_gbt()
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=[svm, gbt])
         model.fit(x_train, y_train_mono)
         model.list_classes = [0, 1]
         y_true = np.array([0, 1, 0, 1])
@@ -1383,12 +1198,9 @@ class Modelaggregation(unittest.TestCase):
         remove_dir(model_dir)
 
         # Model needs to be fitted
-        list_models = [ModelTfidfSvm(), ModelTfidfSuperDocumentsNaive()]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
+        model = ModelAggregation(model_dir=model_dir)
         with self.assertRaises(AttributeError):
             df_metrics = model.get_and_save_metrics(y_true, y_pred)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
     def test16_model_aggregation_reload_from_standalone(self):
