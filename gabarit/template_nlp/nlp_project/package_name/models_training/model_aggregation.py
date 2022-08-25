@@ -132,9 +132,9 @@ class ModelAggregation(ModelClass):
         self.nb_fit += 1
 
         # Set list_classes
-        self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
-        list_label_str = [label for label in self.list_classes if isinstance(label, str)]
-        list_label_other = [label for label in self.list_classes if label not in list_label_str]
+        list_classes = {label for model in self.list_real_models for label in model.list_classes}
+        list_label_str = [label for label in list_classes if isinstance(label, str)]
+        list_label_other = [int(label) for label in list_classes if label not in list_label_str]
         list_label_str.sort()
         list_label_other.sort()
         self.list_classes = list_label_other + list_label_str
