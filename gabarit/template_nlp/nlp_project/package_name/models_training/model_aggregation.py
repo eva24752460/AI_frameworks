@@ -255,6 +255,8 @@ class ModelAggregation(ModelClass):
             for col in model.list_classes:
                 df_all[col] = df_model[col]
             return df_all.to_numpy()
+        elif not model.multi_label and not return_proba:
+            return pred
         else:
             return np.array([[1 if pred[n_test] == col else 0 for col in self.list_classes] for n_test in range(len(pred))])
 
