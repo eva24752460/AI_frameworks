@@ -519,6 +519,52 @@ class Modelaggregation(unittest.TestCase):
         target_multi_1 = np.array([[0, 1, 0, 1, 0], [1, 0, 0, 1, 0], [0, 0, 0, 1, 1]])
 
         #################################################
+        # aggregation_function: Callable
+        # usint_proba
+        # not multi_label
+        #################################################
+
+        model_mono_int1, model_mono_str1, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+        model_mono_int2, model_mono_str2, _, _ = self.mock_model_mono_multi_int_str_fitted(dict_var)
+
+        def function_test(self, proba: np.ndarray):
+            proba_average = np.sum(proba, axis=0) / proba.shape[0]
+            index_class = np.argmax(proba_average)
+            return self.list_classes[index_class]
+
+        # All models have the same labels
+        list_models_int = [model_mono_int1, model_mono_int2]
+        model_int = ModelAggregation(model_dir=model_dir, list_models=list_models_int, using_proba=True, multi_label=False, aggregation_function=function_test)
+        # not return proba
+        preds = model_int.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertEquals(preds.all(), target_int.all())
+        # return proba
+        probas = model_int.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
+        remove_dir(model_dir)
+
+        # The models have different labels
+        list_models_int_str = [model_mono_int1, model_mono_str1, model_mono_str2]
+        model_int_str = ModelAggregation(model_dir=model_dir, list_models=list_models_int_str, using_proba=True, multi_label=False, aggregation_function=function_test)
+        # not return proba
+        preds = model_int_str.predict(x_test)
+        self.assertEqual(preds.shape, (len(x_test),))
+        self.assertTrue((preds == target_str).all())
+        # return proba
+        probas = model_int_str.predict(x_test, return_proba=True)
+        self.assertEqual(probas.shape, (len(x_test), n_classes_int_str))
+        self.assertAlmostEqual(probas.sum(), len(x_test))
+        self.assertAlmostEqual(probas.all(), target_probas_int_svm.all())
+        remove_dir(model_dir)
+        remove_dir(model_mono_int1.model_dir)
+        remove_dir(model_mono_int2.model_dir)
+        remove_dir(model_mono_str1.model_dir)
+        remove_dir(model_mono_str2.model_dir)
+
+        #################################################
         # aggregation_function: majority_vote
         # not usint_proba
         # not multi_label
@@ -1111,10 +1157,6 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        ######################################################
-        # aggregation_function = 'majority_vote'
-        ######################################################
-
         svm, gbt, _, _ = self.create_svm_gbt()
         model = ModelAggregation(model_dir=model_dir, list_models=[svm, gbt])
         model.save(json_data={'test': 10})
@@ -1211,7 +1253,6 @@ class Modelaggregation(unittest.TestCase):
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
-        model_name = 'test16'
 
         #######################
         #  mono_label
