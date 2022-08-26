@@ -39,7 +39,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, multi_label: Union[bool, None] = False, **kwargs) -> None:
+    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, multi_label: Union[bool, None] = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Kwargs:
@@ -97,11 +97,7 @@ class ModelAggregation(ModelClass):
             if True in set_multi_label and not self.multi_label:
                 raise ValueError(f"The 'multi_label' parameters of the list models are inconsistent with the model_aggregation.")
 
-        # Check fitted
-        if self.list_real_models is not None:
-            models_trained = {model.trained for model in self.list_real_models}
-            if False not in models_trained:
-                self._set_trained()
+        self._check_trained()
 
     def _sort_model_type(self, list_models: List) -> None:
         '''Populate the self.list_real_models if it is None.
@@ -125,23 +121,27 @@ class ModelAggregation(ModelClass):
             self.list_real_models = list_real_models
             self.list_models = new_list_models
 
-    def _set_trained(self):
-        '''Sets various attributes related to the fitting of underlying models
+    def _check_trained(self):
+        '''Check and sets various attributes related to the fitting of underlying models
+
+        Raises more than one type of labels in list models
         '''
-        self.trained = True
-        self.nb_fit += 1
+        # Check fitted
+        if self.list_real_models is not None:
+            models_trained = {model.trained for model in self.list_real_models}
+            if False not in models_trained:
+                self.trained = True
+                self.nb_fit += 1
 
-        # Set list_classes
-        list_classes = {label for model in self.list_real_models for label in model.list_classes}
-        list_label_str = [label for label in list_classes if isinstance(label, str)]
-        list_label_other = [int(label) for label in list_classes if label not in list_label_str]
-        list_label_str.sort()
-        list_label_other.sort()
-        self.list_classes = list_label_other + list_label_str
+                # Set list_classes
+                self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
+                if not all(isinstance(label, type(self.list_classes[0])) for label in self.list_classes):
+                    raise TypeError('You have more than one type of labels in your list models.')
+                self.list_classes.sort()
 
-        # self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
-        # Set dict_classes based on list classes
-        self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
+                # self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
+                # Set dict_classes based on list classes
+                self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
 
     def fit(self, x_train, y_train, **kwargs) -> None:
         '''Trains the model
@@ -168,7 +168,7 @@ class ModelAggregation(ModelClass):
                     raise ValueError(f"Model {model}(model_name: {model.model_name}) needs y_train_multi_label to fit")
                 model.fit(x_train, y_train, **kwargs)
 
-        self._set_trained()
+        self._check_trained()
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
