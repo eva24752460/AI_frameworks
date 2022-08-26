@@ -610,7 +610,6 @@ class Modelaggregation(unittest.TestCase):
                             target_predict=dic_mono['target_2'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
-
         #################################################
         # Set Vas multi_label
         #################################################
@@ -775,19 +774,19 @@ class Modelaggregation(unittest.TestCase):
         self.assertTrue(isinstance(probas, np.ndarray))
         self.assertEqual(len(probas), len(x_train))
         self.assertEqual(probas.shape, (len(x_train), len(list_models), n_classes))
-        svm1 = ModelTfidfSvm()
-        svm2 = ModelTfidfSvm()
-        svm1.fit(x_train, y_train_mono)
-        svm2.fit(x_train, y_train_mono)
-        probas_svm1 = svm1.predict_proba(x_train)
-        probas_svm2 = svm2.predict_proba(x_train)
-        self.assertEqual(probas[0].all(), probas_svm1.all())
-        self.assertEqual(probas[1].all(), probas_svm2.all())
+        svm = ModelTfidfSvm()
+        gbt = ModelTfidfGbt()
+        svm.fit(x_train, y_train_mono)
+        gbt.fit(x_train, y_train_mono)
+        probas_svm = svm.predict_proba(x_train)
+        probas_gbt = gbt.predict_proba(x_train)
+        self.assertTrue(([probas[i][0] for i in range(len(probas))] == probas_svm).all())
+        self.assertTrue(([probas[i][1] for i in range(len(probas))] == probas_gbt).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
-        remove_dir(svm1.model_dir)
-        remove_dir(svm2.model_dir)
+        remove_dir(svm.model_dir)
+        remove_dir(gbt.model_dir)
 
         # Model needs to be fitted
         model = ModelAggregation(model_dir=model_dir)
@@ -910,7 +909,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(list_models=list_models)
         svm1_predict_full_classes = model._predict_model_with_full_list_classes(svm1, x_test, return_proba=True)
         self.assertEqual(svm1_predict_full_classes.shape, (len(x_test), cols_all))
-        self.assertEqual(svm1_predict_full_classes.all(), target_predict_model_with_full_list_classes.all())
+        self.assertTrue((svm1_predict_full_classes == target_predict_model_with_full_list_classes).all())
         # not return_proba
         svm1_predict_full_classes = model._predict_model_with_full_list_classes(svm1, x_test, return_proba=False)
         self.assertEqual(svm1_predict_full_classes.shape, (len(x_test),))
@@ -941,7 +940,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(list_models=[svm1, svm2], multi_label=True, aggregation_function='all_predictions')
         svm1_predict_full_classes = model._predict_model_with_full_list_classes(svm1, x_test, return_proba=True)
         self.assertEqual(svm1_predict_full_classes.shape, (len(x_test), cols_all))
-        self.assertEqual(svm1_predict_full_classes.all(), target_predict_model_with_full_list_classes.all())
+        self.assertTrue((svm1_predict_full_classes == target_predict_model_with_full_list_classes).all())
         # not return_proba
         svm1_predict_full_classes = model._predict_model_with_full_list_classes(svm1, x_test, return_proba=False)
         self.assertEqual(svm1_predict_full_classes.shape, (len(x_test), cols_all))
@@ -1032,8 +1031,8 @@ class Modelaggregation(unittest.TestCase):
         # Test
         preds = model._get_predictions(x_test)
         all_predictions_0 = model.all_predictions(preds[0])
-        self.assertEqual(all_predictions_0.all(), target_all_predictions[0].all())
-        self.assertEqual(np.array([model.all_predictions(array) for array in preds]).all(), target_all_predictions.all())
+        self.assertTrue((all_predictions_0 == target_all_predictions[0]).all())
+        self.assertTrue((np.array([model.all_predictions(array) for array in preds]) == target_all_predictions).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -1064,8 +1063,8 @@ class Modelaggregation(unittest.TestCase):
         # Test
         preds = model._get_predictions(x_test)
         vote_labels_0 = model.vote_labels(preds[0])
-        self.assertEqual(vote_labels_0.all(), target_vote_labels_1[0].all())
-        self.assertEqual(np.array([model.vote_labels(array) for array in preds]).all(), target_vote_labels_1.all())
+        self.assertTrue((vote_labels_0 == target_vote_labels_1[0]).all())
+        self.assertTrue((np.array([model.vote_labels(array) for array in preds]) == target_vote_labels_1).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -1209,8 +1208,8 @@ class Modelaggregation(unittest.TestCase):
         self.assertTrue(isinstance(model.list_real_models[1], type(model_new.list_real_models[1])))
         self.assertEqual(model.using_proba, model_new.using_proba)
         self.assertEqual(model.aggregation_function.__code__.co_code, model_new.aggregation_function.__code__.co_code)
-        self.assertEqual(model.predict(x_test).all(), model_new.predict(x_test).all())
-        self.assertEqual(model.predict_proba(x_test).all(), model_new.predict_proba(x_test).all())
+        self.assertTrue((model.predict(x_test) == model_new.predict(x_test)).all())
+        self.assertTrue((model.predict_proba(x_test) == model_new.predict_proba(x_test)).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         for m in model_new.list_real_models:
@@ -1257,8 +1256,8 @@ class Modelaggregation(unittest.TestCase):
         self.assertTrue(isinstance(model.list_real_models[1], type(model_new.list_real_models[1])))
         self.assertEqual(model.using_proba, model_new.using_proba)
         self.assertEqual(model.aggregation_function.__code__.co_code, model_new.aggregation_function.__code__.co_code)
-        self.assertEqual(model.predict(x_test).all(), model_new.predict(x_test).all())
-        self.assertEqual(model.predict_proba(x_test).all(), model_new.predict_proba(x_test).all())
+        self.assertTrue((model.predict(x_test) == model_new.predict(x_test)).all())
+        self.assertTrue((model.predict_proba(x_test) == model_new.predict_proba(x_test)).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         for m in model_new.list_real_models:
