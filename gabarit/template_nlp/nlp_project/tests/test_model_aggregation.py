@@ -499,18 +499,18 @@ class Modelaggregation(unittest.TestCase):
 
         dic_mono = {'x_train': np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"]),
                     'x_test': np.array(["ici test", "là, rien!"]),
-                    'y_train_1': [0, 1, 0, 1, 2],
-                    'y_train_2': [1, 0, 0, 2, 3],
-                    'y_train_9': [0, 9, 9, 9, 9],
-                    'target_1': [1, 2],
-                    'target_2': [2, 3],
+                    'y_train_1': [1, 2, 1, 2, 3],
+                    'y_train_2': [2, 1, 1, 0, 4],
+                    'y_train_9': [1, 9, 9, 9, 9],
+                    'target_1': [2, 3],
+                    'target_2': [0, 4],
                     'target_9': [9, 9],
                     'target_probas_1': [[0, 1, 0], [0, 0, 1]],
-                    'target_probas_1_2_2': [[0, 1/3, 2/3, 0], [0, 0, 1/3, 2/3]],
-                    'target_probas_9': [[0, 2/5, 2/5, 0, 1/5], [0, 0, 2/5, 2/5, 1/5]],
+                    'target_probas_1_2_2': [[2/3, 0, 1/3, 0, 0], [0, 0, 0, 1/3, 2/3]],
+                    'target_probas_9': [[2/5, 0, 2/5, 0, 0, 1/5], [0, 0, 0, 2/5, 2/5, 1/5]],
                     'target_multi_1': [[0, 1, 0], [0, 0, 1]],
-                    'target_multi_1_2_2_all': [[0, 1, 1, 0], [0, 0, 1, 1]],
-                    'target_multi_1_2_2_vote': [[0, 0, 1, 0], [0, 0, 0, 1]]}
+                    'target_multi_1_2_2_all': [[1, 0, 1, 0, 0], [0, 0, 0, 1, 1]],
+                    'target_multi_1_2_2_vote': [[1, 0, 0, 0, 0], [0, 0, 0, 0, 1]]}
 
         model_path = utils.get_models_path()
         list_model_mono = [ModelTfidfSvm(model_dir=os.path.join(model_path, 'model_test_123456789_svm_1')),
