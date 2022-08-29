@@ -517,7 +517,7 @@ class Modelaggregation(unittest.TestCase):
         list_model_mono = [ModelTfidfSvm(), ModelTfidfSvm(), ModelTfidfSvm(), ModelTfidfSvm()]
         for i in range(2):
             list_model_mono[i].fit(dic_mono['x_train'], dic_mono['y_train_1'])
-            list_model_mono[i+2].fit(dic_mono['x_train'], dic_mono['y_train_2'])
+            list_model_mono[i + 2].fit(dic_mono['x_train'], dic_mono['y_train_2'])
 
         def test_predict_probas(model, x_test, shape_preds, shape_probas, target_predict, target_probas):
             preds = model.predict(x_test)
@@ -549,7 +549,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='majority_vote')
         test_predict_probas(model, dic_mono['x_test'],
                             shape_preds=(len(dic_mono['x_test']),),
-                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
+                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
                             target_predict=dic_mono['target_2'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
@@ -573,7 +573,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='proba_argmax')
         test_predict_probas(model, dic_mono['x_test'],
                             shape_preds=(len(dic_mono['x_test']),),
-                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
+                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
                             target_predict=dic_mono['target_2'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
@@ -606,7 +606,7 @@ class Modelaggregation(unittest.TestCase):
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, using_proba=False, multi_label=False, aggregation_function=function_test)
         test_predict_probas(model, dic_mono['x_test'],
                             shape_preds=(len(dic_mono['x_test']),),
-                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
+                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
                             target_predict=dic_mono['target_2'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
@@ -615,25 +615,25 @@ class Modelaggregation(unittest.TestCase):
         #################################################
 
         dic_multi = {'x_train': np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"]),
-                    'x_test': np.array(["ici test", "là, rien!"]),
-                    'y_train_1': pd.DataFrame({'test1': [0, 1, 0, 1, 0], 'test2': [1, 0, 0, 1, 0], 'test3': [0, 0, 0, 1, 1]}),
-                    'y_train_2': pd.DataFrame({'oui': [1, 1, 0, 1, 0], 'non': [1, 0, 1, 0, 0]}),
-                    'y_train_mono': ['test3', 'test3', 'test3', 'test3', 'test4'],
-                    'cols_1': ['test1', 'test2', 'test3'],
-                    'cols_2': ['oui', 'non'],
-                    'target_1': [[1, 1, 1], [0, 0, 1]],
-                    'target_1_mono_all': [[1, 1, 1, 0], [0, 0, 1, 1]],
-                    'target_1_mono_vote': [[1, 1, 1, 0], [0, 0, 1, 0]],
-                    'target_2_all': [[0, 1, 1, 1, 1], [0, 0, 0, 0, 1]],
-                    'target_2_vote': [[0, 1, 0, 0, 0], [0, 0, 0, 0, 0]],
-                    'target_probas_1': [[1, 1, 1], [0, 0, 1]],
-                    'target_probas_1_1_mono': [[2/3, 2/3, 1, 0], [0, 0, 2/3, 1/3]],
-                    'target_probas_1_2_2': [[0, 2/3, 1/3, 1/3, 1/3], [0, 0, 0, 0, 1/3]]}
+                     'x_test': np.array(["ici test", "là, rien!"]),
+                     'y_train_1': pd.DataFrame({'test1': [0, 1, 0, 1, 0], 'test2': [1, 0, 0, 1, 0], 'test3': [0, 0, 0, 1, 1]}),
+                     'y_train_2': pd.DataFrame({'oui': [1, 1, 0, 1, 0], 'non': [1, 0, 1, 0, 0]}),
+                     'y_train_mono': ['test3', 'test3', 'test3', 'test3', 'test4'],
+                     'cols_1': ['test1', 'test2', 'test3'],
+                     'cols_2': ['oui', 'non'],
+                     'target_1': [[1, 1, 1], [0, 0, 1]],
+                     'target_1_mono_all': [[1, 1, 1, 0], [0, 0, 1, 1]],
+                     'target_1_mono_vote': [[1, 1, 1, 0], [0, 0, 1, 0]],
+                     'target_2_all': [[0, 1, 1, 1, 1], [0, 0, 0, 0, 1]],
+                     'target_2_vote': [[0, 1, 0, 0, 0], [0, 0, 0, 0, 0]],
+                     'target_probas_1': [[1, 1, 1], [0, 0, 1]],
+                     'target_probas_1_1_mono': [[2/3, 2/3, 1, 0], [0, 0, 2/3, 1/3]],
+                     'target_probas_1_2_2': [[0, 2/3, 1/3, 1/3, 1/3], [0, 0, 0, 0, 1/3]]}
 
         list_model_multi = [ModelTfidfSvm(multi_label=True), ModelTfidfSvm(multi_label=True), ModelTfidfSvm(multi_label=True), ModelTfidfSvm(multi_label=True)]
         for i in range(2):
             list_model_multi[i].fit(dic_multi['x_train'], dic_multi['y_train_1'][dic_multi['cols_1']])
-            list_model_multi[i+2].fit(dic_multi['x_train'], dic_multi['y_train_2'][dic_multi['cols_2']])
+            list_model_multi[i + 2].fit(dic_multi['x_train'], dic_multi['y_train_2'][dic_multi['cols_2']])
         svm_mono = ModelTfidfSvm()
         svm_mono.fit(dic_multi['x_train'], dic_multi['y_train_mono'])
 
@@ -656,8 +656,8 @@ class Modelaggregation(unittest.TestCase):
         list_models = [list_model_mono[0], list_model_mono[2], list_model_mono[3]]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='all_predictions')
         test_predict_probas(model, dic_mono['x_test'],
-                            shape_preds=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
-                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
+                            shape_preds=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
+                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
                             target_predict=dic_mono['target_multi_1_2_2_all'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
@@ -707,8 +707,8 @@ class Modelaggregation(unittest.TestCase):
         list_models = [list_model_mono[0], list_model_mono[2], list_model_mono[3]]
         model = ModelAggregation(model_dir=model_dir, list_models=list_models, aggregation_function='vote_labels')
         test_predict_probas(model, dic_mono['x_test'],
-                            shape_preds=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
-                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1']+dic_mono['y_train_2']))),
+                            shape_preds=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
+                            shape_probas=(len(dic_mono['x_test']), len(set(dic_mono['y_train_1'] + dic_mono['y_train_2']))),
                             target_predict=dic_mono['target_multi_1_2_2_vote'], target_probas=dic_mono['target_probas_1_2_2'])
         remove_dir(model_dir)
 
@@ -897,7 +897,7 @@ class Modelaggregation(unittest.TestCase):
         y_mono_2 = ['test1', 'test3', 'test4']
         cols_all = len(['test1', 'test2', 'test3', 'test4'])
         target_predict_model_with_full_list_classes = np.array([1, 0, 0, 0])
-        target_predict_svm1= 'test1'
+        target_predict_svm1 = 'test1'
 
         svm1 = ModelTfidfSvm()
         svm1.fit(x_train, y_mono_1)
