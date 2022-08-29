@@ -137,8 +137,8 @@ class ModelAggregation(ModelClass):
                 self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
                 list_label_str = [label for label in self.list_classes if isinstance(label, (str, np.str))]
                 list_label_other = [int(label) for label in self.list_classes if label not in list_label_str]
-                if len(list_label_str) > 0 and len(list_label_other) >0:
-                    raise TypeError('You have more than one type of labels in your list models.')
+                if len(list_label_str) > 0 and len(list_label_other) > 0:
+                    raise TypeError('There are more than one type of labels in the list models.')
                 self.list_classes.sort()
 
                 # self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
@@ -249,7 +249,7 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.array): predict complete (0 for missing columns)
         '''
-        pred = model.predict_proba(x_test) if return_proba else model.predict(x_test)
+        pred = model.predict(x_test, return_proba=return_proba)
 
         if model.multi_label or return_proba:
             df_all = pd.DataFrame(np.zeros((len(pred), len(self.list_classes))), columns=self.list_classes)
