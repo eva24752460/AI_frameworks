@@ -135,7 +135,9 @@ class ModelAggregation(ModelClass):
 
                 # Set list_classes
                 self.list_classes = list({label for model in self.list_real_models for label in model.list_classes})
-                if not all(isinstance(label, type(self.list_classes[0])) for label in self.list_classes):
+                list_label_str = [label for label in self.list_classes if isinstance(label, (str, np.str))]
+                list_label_other = [int(label) for label in self.list_classes if label not in list_label_str]
+                if len(list_label_str) > 0 and len(list_label_other) >0:
                     raise TypeError('You have more than one type of labels in your list models.')
                 self.list_classes.sort()
 
