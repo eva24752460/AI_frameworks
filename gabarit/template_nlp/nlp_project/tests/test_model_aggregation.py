@@ -837,7 +837,8 @@ class Modelaggregation(unittest.TestCase):
         cols_2 = ['test1', 'test3', 'test4']
         target_get_pred_svm = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0], [0, 0, 0, 0]])
         target_get_pred_gbt = np.array([[0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1], [0, 0, 0, 0]])
-        n_classes_all = len(['test0', 'test1', 'test2', 'test3'])
+        list_classes = ['test1', 'test2', 'test3', 'test4']
+        n_classes_all = len(list_classes)
 
         # mono_label
         svm, gbt, _, _ = self.create_svm_gbt()
@@ -861,8 +862,21 @@ class Modelaggregation(unittest.TestCase):
         preds = model._get_predictions(x_train)
         self.assertTrue(isinstance(preds, np.ndarray))
         self.assertEqual(preds.shape, (len(x_train), len(list_models), n_classes_all))
-        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == target_get_pred_svm).all())
-        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == target_get_pred_gbt).all())
+        # mono to multi
+        preds_svm = svm.predict(x_train)
+        df_all_svm = pd.DataFrame(np.zeros((len(preds_svm), len(list_classes))), columns=list_classes)
+        df_svm = pd.DataFrame(preds_svm, columns=svm.list_classes)
+        for col in svm.list_classes:
+            df_all_svm[col] = df_svm[col]
+        preds_gbt = gbt.predict(x_train)
+        df_all_gbt = pd.DataFrame(np.zeros((len(preds_gbt), len(set(cols_1 + cols_2)))), columns=list_classes)
+        df_gbt = pd.DataFrame(preds_gbt, columns=gbt.list_classes)
+        for col in gbt.list_classes:
+            df_all_gbt[col] = df_gbt[col]
+        # self.assertTrue(([preds[i][0] for i in range(len(x_train))] == target_get_pred_svm).all())
+        # self.assertTrue(([preds[i][1] for i in range(len(x_train))] == target_get_pred_gbt).all())
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == df_all_svm.to_numpy()).all())
+        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == df_all_gbt.to_numpy()).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -890,6 +904,10 @@ class Modelaggregation(unittest.TestCase):
         probas = model.predict_proba(x_train)
         self.assertEqual(len(probas), len(x_train))
         self.assertEqual(len(probas[0]), n_classes)
+        probas_svm = svm.predict(x_train, return_proba=True)
+        probas_gbt = gbt.predict(x_train, return_proba=True)
+        probas_agg = [(probas_svm[i]+probas_gbt[i])/2 for i in range(len(probas_svm))]
+        self.assertTrue((probas == probas_agg).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
@@ -911,12 +929,12 @@ class Modelaggregation(unittest.TestCase):
         ############################################
 
         # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test"])
         x_test = np.array(['ceci est un test'])
-        y_mono_1 = ['test1', 'test2', 'test4']
-        y_mono_2 = ['test1', 'test3', 'test4']
-        cols_all = len(['test1', 'test2', 'test3', 'test4'])
-        target_predict_model_with_full_list_classes = np.array([1, 0, 0, 0])
+        y_mono_1 = ['test1', 'test2', 'test4', 'test1']
+        y_mono_2 = ['test1', 'test0', 'test3', 'test5']
+        cols_all = len(['test0', 'test1', 'test2', 'test3', 'test4', 'test5'])
+        target_predict_model_with_full_list_classes = np.array([0, 1, 0, 0, 0, 0])
         target_predict_svm1 = 'test1'
 
         model_path = utils.get_models_path()
@@ -943,13 +961,13 @@ class Modelaggregation(unittest.TestCase):
         ############################################
 
         # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus"])
-        y_multi_1 = pd.DataFrame({'test1': [1, 0, 1], 'test2': [1, 1, 0], 'test4': [0, 1, 0]})
+        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test"])
+        y_multi_1 = pd.DataFrame({'test1': [1, 0, 1, 0], 'test2': [1, 1, 0, 0], 'test4': [0, 1, 0, 1]})
         cols_1 = ['test1', 'test2', 'test4']
-        y_multi_2 = pd.DataFrame({'test1': [1, 1, 0], 'test3': [1, 0, 1], 'test4': [0, 1, 0]})
-        cols_2 = ['test1', 'test3', 'test4']
-        cols_all = len(['test1', 'test2', 'test3', 'test4'])
-        target_predict_model_with_full_list_classes = np.array([1, 1, 0, 0])
+        y_multi_2 = pd.DataFrame({'test0': [0, 1, 0, 0], 'test3': [0, 1, 1, 0], 'test5': [0, 1, 0, 0]})
+        cols_2 = ['test0', 'test3', 'test5']
+        cols_all = len(['test0', 'test1', 'test2', 'test3', 'test4', 'test5'])
+        target_predict_model_with_full_list_classes = np.array([0, 1, 1, 0, 0, 0])
 
         model_path = utils.get_models_path()
         svm1 = ModelTfidfSvm(multi_label=True, model_dir=os.path.join(model_path, 'model_test_123456789_svm_1'))
