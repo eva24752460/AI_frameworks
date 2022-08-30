@@ -835,8 +835,6 @@ class Modelaggregation(unittest.TestCase):
         y_train_multi_2 = pd.DataFrame({'test1': [0, 0, 0, 1, 0], 'test3': [1, 0, 0, 0, 0], 'test4': [0, 0, 0, 1, 0]})
         cols_1 = ['test1', 'test2', 'test3']
         cols_2 = ['test1', 'test3', 'test4']
-        target_get_pred_svm = np.array([[0, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 1, 0], [0, 0, 0, 0]])
-        target_get_pred_gbt = np.array([[0, 0, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [1, 0, 0, 1], [0, 0, 0, 0]])
         list_classes = ['test1', 'test2', 'test3', 'test4']
         n_classes_all = len(list_classes)
 
@@ -862,21 +860,10 @@ class Modelaggregation(unittest.TestCase):
         preds = model._get_predictions(x_train)
         self.assertTrue(isinstance(preds, np.ndarray))
         self.assertEqual(preds.shape, (len(x_train), len(list_models), n_classes_all))
-        # mono to multi
-        preds_svm = svm.predict(x_train)
-        df_all_svm = pd.DataFrame(np.zeros((len(preds_svm), len(list_classes))), columns=list_classes)
-        df_svm = pd.DataFrame(preds_svm, columns=svm.list_classes)
-        for col in svm.list_classes:
-            df_all_svm[col] = df_svm[col]
-        preds_gbt = gbt.predict(x_train)
-        df_all_gbt = pd.DataFrame(np.zeros((len(preds_gbt), len(set(cols_1 + cols_2)))), columns=list_classes)
-        df_gbt = pd.DataFrame(preds_gbt, columns=gbt.list_classes)
-        for col in gbt.list_classes:
-            df_all_gbt[col] = df_gbt[col]
-        # self.assertTrue(([preds[i][0] for i in range(len(x_train))] == target_get_pred_svm).all())
-        # self.assertTrue(([preds[i][1] for i in range(len(x_train))] == target_get_pred_gbt).all())
-        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == df_all_svm.to_numpy()).all())
-        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == df_all_gbt.to_numpy()).all())
+        preds_svm = model._predict_model_with_full_list_classes(svm, x_train, return_proba=False)
+        preds_gbt = model._predict_model_with_full_list_classes(gbt, x_train, return_proba=False)
+        self.assertTrue(([preds[i][0] for i in range(len(x_train))] == preds_svm).all())
+        self.assertTrue(([preds[i][1] for i in range(len(x_train))] == preds_gbt).all())
         for submodel in model.list_real_models:
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
