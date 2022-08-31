@@ -170,6 +170,40 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
+        # list_models = [model_name, model]
+        # aggregation_function: Callable
+        # not using_proba
+        # not multi_label
+
+        # This function is a copy of majority_vote function
+        def function_test(predictions):
+            labels, counts = np.unique(predictions, return_counts=True)
+            votes = [(label, count) for label, count in zip(labels, counts)]
+            votes = sorted(votes, key=lambda x: x[1], reverse=True)
+            if len(votes) > 1 and votes[0][1] == votes[1][1]:
+                return predictions[0]
+            else:
+                return votes[0][0]
+
+        svm, gbt, svm_name, gbt_name = self.create_svm_gbt()
+        list_models = [svm_name, gbt_name]
+        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=list_models, using_proba=False, multi_label=False, aggregation_function=function_test)
+        self.assertTrue(os.path.isdir(model_dir))
+        self.assertEqual(model.model_name, model_name)
+        self.assertFalse(model.multi_label)
+        self.assertFalse(model.using_proba)
+        self.assertTrue(isinstance(model.list_models, list))
+        self.assertEqual(model.list_models, list_models)
+        self.assertTrue(isinstance(model.list_real_models[0], type(svm)))
+        self.assertTrue(isinstance(model.list_real_models[1], type(gbt)))
+        self.assertTrue(isinstance(model._is_gpu_activated(), bool))
+        self.assertEqual(function_test.__code__.co_code, model.aggregation_function.__code__.co_code)
+        # We test display_if_gpu_activated and _is_gpu_activated just by calling them
+        model.display_if_gpu_activated()
+        for submodel in model.list_real_models:
+            remove_dir(os.path.split(submodel.model_dir)[-1])
+        remove_dir(model_dir)
+
         ############################################
         # Error
         ############################################
