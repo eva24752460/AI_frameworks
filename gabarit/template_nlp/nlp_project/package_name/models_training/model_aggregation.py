@@ -335,7 +335,6 @@ class ModelAggregation(ModelClass):
             aggregation_function_path = os.path.join(self.model_dir, "aggregation_function.pkl")
             # Save as pickle
             with open(aggregation_function_path, 'wb') as f:
-                # TODO: use dill to get rid of  "can't pickle ..." errors
                 pickle.dump(self.aggregation_function, f)
 
         # Save
