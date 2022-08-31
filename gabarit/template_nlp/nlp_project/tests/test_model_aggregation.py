@@ -1039,8 +1039,8 @@ class Modelaggregation(unittest.TestCase):
         preds = np.array([5])
         self.assertEqual(model.majority_vote(preds), 5)
         # same predict (5 models)
-        preds = np.array(['c', 'b', 'b', 'a', 'c'])
-        self.assertEqual(model.majority_vote(preds), 'c')
+        preds = np.array(['a', 'b', 'c', 'b', 'c'])
+        self.assertEqual(model.majority_vote(preds), 'a')
 
         remove_dir(model_dir)
 
@@ -1066,6 +1066,9 @@ class Modelaggregation(unittest.TestCase):
         # shape (3 models, 1 label)
         preds = np.array([[0], [0], [1]])
         self.assertTrue((model.all_predictions(preds) == [1]).all())
+        # shape (3 models, 1 label)
+        preds = np.array([[0], [0], [0]])
+        self.assertTrue((model.all_predictions(preds) == [0]).all())
 
         remove_dir(model_dir)
 
@@ -1080,8 +1083,8 @@ class Modelaggregation(unittest.TestCase):
 
         # normal case
         # shape (3 models, 4 labels)
-        preds = np.array([[1, 0, 0, 1], [1, 1, 0, 0], [1, 1, 0, 1]])
-        self.assertTrue((model.vote_labels(preds) == [1, 1, 0, 1]).all())
+        preds = np.array([[1, 0, 0, 1], [1, 1, 0, 0], [1, 0, 0, 1]])
+        self.assertTrue((model.vote_labels(preds) == [1, 0, 0, 1]).all())
         # shape (3 models, 2 labels)
         preds = np.array([[0, 1], [1, 0], [0, 1]])
         self.assertTrue((model.vote_labels(preds) == [0, 1]).all())
@@ -1091,10 +1094,13 @@ class Modelaggregation(unittest.TestCase):
         # shape (3 models, 1 label)
         preds = np.array([[0], [1], [1]])
         self.assertTrue((model.vote_labels(preds) == [1]).all())
+        # shape (3 models, 1 label)
+        preds = np.array([[0], [0], [0]])
+        self.assertTrue((model.vote_labels(preds) == [0]).all())
 
         # same predict
-        preds = np.array([[0, 0], [1, 1], [0, 0], [1, 1]])
-        self.assertTrue((model.vote_labels(preds) == [0, 0]).all())
+        preds = np.array([[0, 1], [1, 0], [0, 0], [1, 1]])
+        self.assertTrue((model.vote_labels(preds) == [0, 1]).all())
 
         remove_dir(model_dir)
 
