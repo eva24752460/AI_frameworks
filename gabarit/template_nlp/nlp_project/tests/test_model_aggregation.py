@@ -981,24 +981,31 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        x_test = np.array(["ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1, 2])
-        target_proba_argmax_gbt = [1, 2]
+        model = ModelAggregation(model_dir=model_dir)
 
-        # Prepare the models
-        _, gbt, _, _ = self.create_svm_gbt()
-        gbt.fit(x_train, y_train_mono)
-        model = ModelAggregation(model_dir=model_dir, list_models=[gbt])
+        ### label str
+        model.list_classes = ['a', 'b', 'c', 'd', 'e']
 
-        # Test
-        preds = model._get_probas(x_test)
-        proba_argmax_0 = model.proba_argmax(preds[0])
-        self.assertEqual(proba_argmax_0, target_proba_argmax_gbt[0])
-        self.assertEqual([model.proba_argmax(array) for array in preds], target_proba_argmax_gbt)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        # normal case
+        # shape (2 models, 3 labels)
+        probas = np.array([[1/5, 2/5, 2/5], [0, 1/3, 2/3]])
+        self.assertEqual(model.proba_argmax(probas), 'c')
+        # shape (3 models, 2 labels)
+        probas = np.array([[1/2, 1/2], [1/3, 2/3], [2/4, 2/4]])
+        self.assertEqual(model.proba_argmax(probas), 'b')
+        # shape (1 model, 3 labels)
+        probas = np.array([[1/6, 3/6, 2/6]])
+        self.assertEqual(model.proba_argmax(probas), 'b')
+        # shape (3 models, 1 label)
+        probas = np.array([[1], [1], [1]])
+        self.assertEqual(model.proba_argmax(probas), 'a')
+
+        ### label int
+        model.list_classes = [1, 2, 3, 4, 5]
+        # same predict
+        probas = np.array([[0, 1/2, 1/2], [0, 1/2, 1/2]])
+        self.assertEqual(model.proba_argmax(probas), 2)
+
         remove_dir(model_dir)
 
     def test11_model_aggregation_majority_vote(self):
@@ -1007,29 +1014,18 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        x_test = np.array(["ici test", "là, rien!"])
-        y_train_str_1 = np.array(['oui', 'non', 'non', 'non', 'non'])
-        y_train_str_2 = np.array(['non', 'oui', 'oui', 'oui', 'oui'])
-        target_majority_vote_1 = ['non', 'non']
+        model = ModelAggregation(model_dir=model_dir)
 
-        # Prepare the models
-        svm, gbt, _, _ = self.create_svm_gbt()
-        svm2, _, _, _ = self.create_svm_gbt()
-        svm.fit(x_train, y_train_str_1)
-        gbt.fit(x_train, y_train_str_1)
-        list_models = [svm, gbt, svm2]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models)
-        model.fit(x_train, y_train_str_2)
+        # normal case (4 models)
+        preds = np.array(['a', 'b', 'b', 'c'])
+        self.assertEqual(model.majority_vote(preds), 'b')
+        # normal case (1 model)
+        preds = np.array([5])
+        self.assertEqual(model.majority_vote(preds), 5)
+        # same predict (5 models)
+        preds = np.array(['c', 'b', 'b', 'a', 'c'])
+        self.assertEqual(model.majority_vote(preds), 'c')
 
-        # Test
-        preds = model._get_predictions(x_test)
-        majority_vote_0 = model.majority_vote(preds[0])
-        self.assertEqual(majority_vote_0, target_majority_vote_1[0])
-        self.assertEqual([model.majority_vote(array) for array in preds], target_majority_vote_1)
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
     def test12_model_aggregation_all_predictions(self):
@@ -1038,28 +1034,23 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        x_test = np.array(["ici test", "là, rien!"])
-        y_multi_1 = pd.DataFrame({'test1': [1, 0, 1, 0, 0], 'test2': [1, 1, 0, 0, 1], 'test4': [0, 1, 0, 1, 0]})
-        cols_1 = ['test1', 'test2', 'test4']
-        y_multi_2 = pd.DataFrame({'test1': [1, 1, 0, 0, 1], 'test3': [1, 0, 1, 1, 0], 'test4': [0, 1, 0, 0, 0]})
-        cols_2 = ['test1', 'test3', 'test4']
-        target_all_predictions = np.array([[0, 0, 1, 1], [1, 1, 0, 0]])
+        model = ModelAggregation(model_dir=model_dir)
+        model.multi_label = True
 
-        # Prepare the models
-        svm, gbt, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        svm.fit(x_train, y_multi_1[cols_1])
-        gbt.fit(x_train, y_multi_2[cols_2])
-        model = ModelAggregation(model_dir=model_dir, list_models=[svm, gbt], multi_label=True, aggregation_function='all_predictions')
+        # normal case
+        # shape (3 models, 4 labels)
+        preds = np.array([[1, 0, 0, 1], [0, 0, 0, 0], [0, 1, 0, 1]])
+        self.assertTrue((model.all_predictions(preds) == [1, 1, 0, 1]).all())
+        # shape (3 models, 2 labels)
+        preds = np.array([[0, 1], [1, 0], [0, 1]])
+        self.assertTrue((model.all_predictions(preds) == [1, 1]).all())
+        # shape (1 model, 3 labels)
+        preds = np.array([[1, 1, 0]])
+        self.assertTrue((model.all_predictions(preds) == [1, 1, 0]).all())
+        # shape (3 models, 1 label)
+        preds = np.array([[0], [0], [1]])
+        self.assertTrue((model.all_predictions(preds) == [1]).all())
 
-        # Test
-        preds = model._get_predictions(x_test)
-        all_predictions_0 = model.all_predictions(preds[0])
-        self.assertTrue((all_predictions_0 == target_all_predictions[0]).all())
-        self.assertTrue((np.array([model.all_predictions(array) for array in preds]) == target_all_predictions).all())
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
     def test13_model_aggregation_vote_labels(self):
@@ -1068,35 +1059,31 @@ class Modelaggregation(unittest.TestCase):
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
 
-        # Set vars
-        x_train = np.array(["ceci est un test", "pas cela", "cela non plus", "ici test", "là, rien!"])
-        x_test = np.array(["ici test", "là, rien!"])
-        y_multi_1 = pd.DataFrame({'test1': [1, 0, 1, 0, 0], 'test2': [1, 1, 0, 0, 1], 'test4': [0, 1, 0, 1, 0]})
-        cols_1 = ['test1', 'test2', 'test4']
-        y_multi_2 = pd.DataFrame({'test1': [1, 1, 0, 0, 1], 'test3': [1, 0, 1, 1, 0], 'test4': [0, 1, 0, 0, 0]})
-        cols_2 = ['test1', 'test3', 'test4']
-        target_vote_labels_1 = np.array([[0, 0, 0, 1], [0, 1, 0, 0]])
+        model = ModelAggregation(model_dir=model_dir)
+        model.multi_label = True
 
-        # Prepare the models
-        svm, gbt, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        svm2, _, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        svm.fit(x_train, y_multi_1[cols_1])
-        gbt.fit(x_train, y_multi_1[cols_1])
-        list_models = [svm, gbt, svm2]
-        model = ModelAggregation(model_dir=model_dir, list_models=list_models, multi_label=True, aggregation_function='vote_labels')
-        model.fit(x_train, y_multi_2[cols_2])
+        # normal case
+        # shape (3 models, 4 labels)
+        preds = np.array([[1, 0, 0, 1], [1, 1, 0, 0], [1, 1, 0, 1]])
+        self.assertTrue((model.vote_labels(preds) == [1, 1, 0, 1]).all())
+        # shape (3 models, 2 labels)
+        preds = np.array([[0, 1], [1, 0], [0, 1]])
+        self.assertTrue((model.vote_labels(preds) == [0, 1]).all())
+        # shape (1 model, 3 labels)
+        preds = np.array([[1, 1, 0]])
+        self.assertTrue((model.vote_labels(preds) == [1, 1, 0]).all())
+        # shape (3 models, 1 label)
+        preds = np.array([[0], [1], [1]])
+        self.assertTrue((model.vote_labels(preds) == [1]).all())
 
-        # Test
-        preds = model._get_predictions(x_test)
-        vote_labels_0 = model.vote_labels(preds[0])
-        self.assertTrue((vote_labels_0 == target_vote_labels_1[0]).all())
-        self.assertTrue((np.array([model.vote_labels(array) for array in preds]) == target_vote_labels_1).all())
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
+        # same predict
+        preds = np.array([[0, 0], [1, 1], [0, 0], [1, 1]])
+        self.assertTrue((model.vote_labels(preds) == [0, 0]).all())
+
         remove_dir(model_dir)
 
     def test14_model_aggregation_save(self):
-        '''Test of the method save of {{package_name}}.models_training.model_aggregation.ModelAggregation.save'''
+        '''Test of the method save of demo.models_training.model_aggregation.ModelAggregation.save'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
         remove_dir(model_dir)
@@ -1132,68 +1119,7 @@ class Modelaggregation(unittest.TestCase):
             remove_dir(os.path.split(submodel.model_dir)[-1])
         remove_dir(model_dir)
 
-    def test15_model_aggregation_get_and_save_metrics(self):
-        '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAggregation.get_and_save_metrics'''
-
-        # Model creation
-        model_dir = os.path.join(os.getcwd(), 'model_test_123456789')
-        remove_dir(model_dir)
-        model_name = 'test'
-
-        # Set vars
-        x_train = np.array(["pas cela", "cela non plus", "ici test", "là, rien!"])
-        y_train_mono = np.array([0, 1, 0, 1])
-        y_train_multi = pd.DataFrame({'test1': [0, 0, 0, 1], 'test2': [1, 0, 0, 0], 'test3': [0, 0, 0, 1]})
-        cols = ['test1', 'test2', 'test3']
-
-        svm, gbt, _, _ = self.create_svm_gbt()
-        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=[svm, gbt])
-        model.fit(x_train, y_train_mono)
-        model.list_classes = [0, 1]
-        y_true = np.array([0, 1, 0, 1])
-        y_pred = np.array([0, 1, 1, 0])
-        df_metrics = model.get_and_save_metrics(y_true, y_pred)
-        self.assertEqual(df_metrics.shape[0], 3) # 2 classes + All
-        self.assertEqual(df_metrics.loc[2, :]['Label'], 'All')
-        self.assertEqual(df_metrics.loc[2, :]['Accuracy'], 0.5)
-        plots_path = os.path.join(model.model_dir, 'plots')
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'predictions.csv')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix_normalized.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'confusion_matrix.png')))
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # get_and_save_metrics - multi-labels
-        svm, gbt, _, _ = self.create_svm_gbt(svm_param={'multi_label': True}, gbt_param={'multi_label': True})
-        model = ModelAggregation(model_dir=model_dir, model_name=model_name, list_models=[svm, gbt], using_proba=False, aggregation_function='all_predictions', multi_label=True)
-        model.fit(x_train, y_train_multi[cols])
-        model.list_classes = ['test1', 'test2', 'test3']
-        y_true = np.array([[0, 1, 0], [1, 1, 0], [0, 0, 0]])
-        y_pred = np.array([[0, 1, 1], [1, 1, 0], [0, 1, 0]])
-        df_metrics = model.get_and_save_metrics(y_true, y_pred)
-        self.assertEqual(df_metrics.shape[0], 4) # 3 classes + All
-        self.assertEqual(df_metrics.loc[3, :]['Label'], 'All')
-        self.assertEqual(df_metrics.loc[0, :]['Accuracy'], 1.0)
-        plots_path = os.path.join(model.model_dir, 'plots')
-        self.assertTrue(os.path.exists(os.path.join(model.model_dir, 'predictions.csv')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test1__confusion_matrix_normalized.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test1__confusion_matrix.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test2__confusion_matrix_normalized.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test2__confusion_matrix.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test3__confusion_matrix_normalized.png')))
-        self.assertTrue(os.path.exists(os.path.join(plots_path, 'test3__confusion_matrix.png')))
-        for submodel in model.list_real_models:
-            remove_dir(os.path.split(submodel.model_dir)[-1])
-        remove_dir(model_dir)
-
-        # Model needs to be fitted
-        model = ModelAggregation(model_dir=model_dir)
-        with self.assertRaises(AttributeError):
-            df_metrics = model.get_and_save_metrics(y_true, y_pred)
-        remove_dir(model_dir)
-
-    def test16_model_aggregation_reload_from_standalone(self):
+    def test15_model_aggregation_reload_from_standalone(self):
         '''Test of the method {{package_name}}.models_training.model_aggregation.ModelAaggregation.reload_from_standalone'''
 
         model_dir = os.path.join(os.getcwd(), 'model_test_123456789')

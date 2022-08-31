@@ -346,36 +346,6 @@ class ModelAggregation(ModelClass):
         setattr(self, "aggregation_function", aggregation_function)
         setattr(self, "list_real_models", list_real_models)
 
-    @utils.trained_needed
-    def get_and_save_metrics(self, y_true, y_pred, x=None, series_to_add: Union[List[pd.Series], None] = None, type_data: str = '', model_logger: Union[ModelLogger, None] = None) -> pd.Series:
-        '''Function to obtain and save model metrics
-
-        Args:
-            y_true (?): array-like, shape = [n_samples, n_features]
-            y_pred (?): array-like, shape = [n_samples, n_features]
-        Kwargs:
-            x (?): array-like or sparse matrix of shape = [n_samples, n_features]
-            series_to_add (list): list of pd.Series to add to the dataframe
-            type_data (str): dataset type (validation, test, ...)
-            model_logger (ModelLogger): custom class to log metrics in ML Flow
-        Returns:
-            pd.DataFrame: the df which contains the statistics
-        '''
-        for model in self.list_real_models:
-            model.get_and_save_metrics(y_true=y_true,
-                                       y_pred=y_pred,
-                                       x=x,
-                                       series_to_add=series_to_add,
-                                       type_data=type_data,
-                                       model_logger=model_logger,)
-
-        return super().get_and_save_metrics(y_true=y_true,
-                                            y_pred=y_pred,
-                                            x=x,
-                                            series_to_add=series_to_add,
-                                            type_data=type_data,
-                                            model_logger=model_logger)
-
     def reload_from_standalone(self, **kwargs) -> None:
         '''Reloads a model aggregation from its configuration and "standalones" files
             Reloads list model from "list_models" files
