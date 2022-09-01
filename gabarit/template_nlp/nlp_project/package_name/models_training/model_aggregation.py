@@ -27,7 +27,8 @@ import dill as pickle
 
 import numpy as np
 import pandas as pd
-from typing import List, Callable, Union
+from types import FunctionType
+from typing import List, Callable, Union, TypedDict, Dict
 
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
@@ -38,7 +39,7 @@ class ModelAggregation(ModelClass):
     '''Model for aggregating multiple ModelClasses'''
     _default_name = 'model_aggregation'
 
-    def __init__(self, list_models: Union[List, None] = None, aggregation_function: Union[Callable, str] = 'majority_vote', using_proba: Union[bool, None] = None, multi_label: Union[bool, None] = None, **kwargs) -> None:
+    def __init__(self, list_models: Union[list, None] = None, aggregation_function: Union[FunctionType, str] = 'majority_vote', using_proba: Union[bool, None] = None, multi_label: Union[bool, None] = None, **kwargs) -> None:
         '''Initialization of the class (see ModelClass for more arguments)
 
         Kwargs:
@@ -63,11 +64,12 @@ class ModelAggregation(ModelClass):
         # Get the aggregation function
         self.using_proba = using_proba
         self.multi_label = multi_label
-        dict_aggregation_function = {'majority_vote': {'function': self.majority_vote, 'using_proba': False, 'multi_label': False},
-                                     'proba_argmax': {'function': self.proba_argmax, 'using_proba': True, 'multi_label': False},
-                                     'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
-                                     'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
-        if isinstance(aggregation_function, (Callable)):
+        typed_dict_aggregation = TypedDict('typed_dict_aggregation', {'function': Callable, 'using_proba': bool, 'multi_label':bool})
+        dict_aggregation_function: Dict[str, typed_dict_aggregation] = {'majority_vote': {'function': self.majority_vote, 'using_proba': False, 'multi_label': False},
+                                                                        'proba_argmax': {'function': self.proba_argmax, 'using_proba': True, 'multi_label': False},
+                                                                        'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
+                                                                        'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
+        if isinstance(aggregation_function, FunctionType):
             if using_proba is None or multi_label is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) and multi_label(bool) cannot be None ")
         else:
@@ -84,9 +86,10 @@ class ModelAggregation(ModelClass):
             aggregation_function = dict_aggregation_function[aggregation_function]['function']
 
         # Manage model
-        self.aggregation_function = aggregation_function
-        self.list_real_models = None
-        self.list_models = None
+        if isinstance(aggregation_function, FunctionType):
+            self.aggregation_function = aggregation_function
+        self.list_real_models: list = None
+        self.list_models: list = None
         if list_models is not None:
             self._sort_model_type(list_models)
 
@@ -155,6 +158,8 @@ class ModelAggregation(ModelClass):
             ValueError : if model needs mono_label but y_train is multi_label
             ValueError : if model needs multi_label but y_train is mono_label
         '''
+        if self.list_real_models is None:
+            return None
         if isinstance(y_train, pd.DataFrame):
             bool_multi_label = True if len(y_train.iloc[0]) > 1 else False
         elif isinstance(y_train, np.ndarray):
@@ -205,6 +210,8 @@ class ModelAggregation(ModelClass):
         Returns:
             (np.ndarray): array of shape = [n_samples, nb_model, nb_classes]
         '''
+        if self.list_real_models is None:
+            return None
         array_proba = np.array([self._predict_model_with_full_list_classes(model, x_test, return_proba=True) for model in self.list_real_models])
         array_proba = np.transpose(array_proba, (1, 0, 2))
         return array_proba
@@ -220,6 +227,8 @@ class ModelAggregation(ModelClass):
             (np.ndarray): not multi-label : array of shape = [n_samples, nb_model]
                           multi-label : array of shape = [n_samples, nb_model, n_classes]
         '''
+        if self.list_real_models is None:
+            return None
         if self.multi_label:
             array_predict = np.array([self._predict_model_with_full_list_classes(model, x_test, return_proba=False) for model in self.list_real_models])
             array_predict = np.transpose(array_predict, (1, 0, 2))
@@ -324,10 +333,11 @@ class ModelAggregation(ModelClass):
             json_data (dict): Additional configurations to be saved
         '''
         # Save each model
-        for model in self.list_real_models:
-            model.save()
+        if self.list_real_models is not None:
+            for model in self.list_real_models:
+                model.save()
 
-        json_data['list_models'] = self.list_models.copy() if self.list_models is not None else None
+        json_data['list_models'] = self.list_models
         json_data['using_proba'] = self.using_proba
 
         aggregation_function = self.aggregation_function
