@@ -158,8 +158,12 @@ class ModelAggregation(ModelClass):
         '''
         if isinstance(y_train, pd.DataFrame):
             bool_multi_label = True if len(y_train.iloc[0]) > 1 else False
-        if isinstance(y_train, np.ndarray):
+        elif isinstance(y_train, np.ndarray):
             bool_multi_label = True if y_train.shape != (len(x_train),) else False
+        elif isinstance(y_train, pd.Series):
+            bool_multi_label = False
+        else:
+            bool_multi_label = False
 
         # Fit each model
         for model in self.list_real_models:
