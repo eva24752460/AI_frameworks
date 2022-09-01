@@ -544,7 +544,6 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
         except Exception:
             self.fail('testModel_TfidfDense failed')
 
-
     def test06_Model_EmbeddingLstm(self):
         '''Test of the model Embedding/LSTM'''
         print('            ------------------ >     Test of the model Embedding/LSTM     /   Mono-class & Mono-label')
@@ -885,7 +884,7 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
 
             # Set model with function majority_vote and list_models=[model, model]
             model_name = 'aggregation_mono_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -899,7 +898,8 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
             # Set model with function majority_vote and list_models=[model_name, model_name]
             svm1 = model_tfidf_svm.ModelTfidfSvm()
             svm2 = model_tfidf_svm.ModelTfidfSvm()
-            list_models = [svm1, svm2]
+            gbt = model_tfidf_gbt.ModelTfidfGbt()
+            list_models = [svm1, svm2, gbt]
             model_name = 'aggregation_mono_class_mono_label'
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
@@ -914,7 +914,7 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
             # Set model with function majority_vote and list_models=[model_name, model]
             model_name = 'aggregation_mono_class_mono_label'
             svm = model_tfidf_svm.ModelTfidfSvm()
-            list_models = [svm, model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [svm, model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -927,7 +927,7 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
 
             # Set model with function proba_argmax
             model_name = 'aggregation_mono_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -940,16 +940,19 @@ class Case2_MonoClassMonoLabel(unittest.TestCase):
 
             # Set model with function given
             model_name = 'aggregation_mono_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
 
+            # This function is a copy of majority_vote function
             def function_test(predictions:pd.Series) -> list:
-                votes = predictions.value_counts().sort_values(ascending=False)
-                if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
+                labels, counts = np.unique(predictions, return_counts=True)
+                votes = [(label, count) for label, count in zip(labels, counts)]
+                votes = sorted(votes, key=lambda x: x[1], reverse=True)
+                if len(votes) > 1 and votes[0][1] == votes[1][1]:
                     return predictions[0]
                 else:
-                    return votes.index[0]
+                    return votes[0][0]
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
                                                         list_models=list_models, using_proba=False, aggregation_function=function_test,
                                                         multi_label=False, model_name=model_name, model_dir=model_dir)
@@ -1479,7 +1482,7 @@ class Case3_MonoClassMultiLabel(unittest.TestCase):
         except Exception:
             self.fail('testModel_EmbeddingLstmStructuredAttention failed')
 
-    def test02_Model_Aggregation(self):
+    def test14_Model_Aggregation(self):
         '''Test of the model TF-IDF/Aggregation'''
         print('            ------------------ >     Test of the model TF-IDF/Aggregation     /   Mono-class & Multi-labels')
 
@@ -1489,55 +1492,56 @@ class Case3_MonoClassMultiLabel(unittest.TestCase):
             test = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(test)
 
-            # Set model function majority_vote and list_models=[model, model]
+            # Set model function all_predictions and list_models=[model, model]
             model_name = 'aggregation_mono_class_multi_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_gbt.ModelTfidfGbt(multi_label=True, )]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
-                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            list_models=list_models, using_proba=False, aggregation_function='all_predictions',
                                                             multi_label=True, model_name=model_name, model_dir=model_dir)
             # Test it
             test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
                       filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
             test_model_mono_class_multi_label(self, test_model)
 
-            # Set model with function majority_vote and list_models=[model_name, model_name]
+            # Set model with function all_predictions and list_models=[model_name, model_name]
             model_name = 'aggregation_mono_class_multi_label'
-            svm1 = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
-            svm2 = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
-            list_models = [svm1, svm2]
+            svm1 = model_tfidf_svm.ModelTfidfSvm(multi_label=True, )
+            svm2 = model_tfidf_svm.ModelTfidfSvm(multi_label=True, )
+            gbt = model_tfidf_gbt.ModelTfidfGbt(multi_label=True, )
+            list_models = [svm1, svm2, gbt]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
-                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            list_models=list_models, using_proba=False, aggregation_function='all_predictions',
                                                             multi_label=True, model_name=model_name, model_dir=model_dir)
             # Test it
             test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
                       filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
             test_model_mono_class_multi_label(self, test_model)
 
-            # Set model with function majority_vote and list_models=[model_name, model]
+            # Set model with function all_predictions and list_models=[model_name, model]
             model_name = 'aggregation_mono_class_multi_label'
-            svm = model_tfidf_svm.ModelTfidfSvm(multi_label=True)
-            list_models = [svm, model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            svm = model_tfidf_svm.ModelTfidfSvm(multi_label=True, )
+            list_models = [svm, model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_gbt.ModelTfidfGbt(multi_label=True, )]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
-                                                            list_models=list_models, using_proba=False, aggregation_function='majority_vote',
+                                                            list_models=list_models, using_proba=False, aggregation_function='all_predictions',
                                                             multi_label=True, model_name=model_name, model_dir=model_dir)
             # Test it
             test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
                       filename_valid='mono_class_multi_label_train_preprocess_P1.csv', model=test_model)
             test_model_mono_class_multi_label(self, test_model)
 
-            # Set model with function proba_argmax
+            # Set model with function vote_labels
             model_name = 'aggregation_mono_class_multi_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_gbt.ModelTfidfGbt(multi_label=True, )]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
-                                                            list_models=list_models, using_proba=True, aggregation_function='proba_argmax',
+                                                            list_models=list_models, using_proba=False, aggregation_function='vote_labels',
                                                             multi_label=True, model_name=model_name, model_dir=model_dir)
             # Test it
             test.main(filename='mono_class_multi_label_train_preprocess_P1.csv', x_col='preprocessed_text', y_col=['y_col_1', 'y_col_2'],
@@ -1546,16 +1550,15 @@ class Case3_MonoClassMultiLabel(unittest.TestCase):
 
             # Set model with function given
             model_name = 'aggregation_mono_class_multi_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True), model_tfidf_svm.ModelTfidfSvm(multi_label=True)]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_svm.ModelTfidfSvm(multi_label=True, ), model_tfidf_gbt.ModelTfidfGbt(multi_label=True, )]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
 
+            # This function is a copy of all_predictions function
             def function_test(predictions:pd.Series) -> list:
-                votes = predictions.value_counts().sort_values(ascending=False)
-                if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
-                    return predictions[0]
-                else:
-                    return votes.index[0]
+                return np.sum(predictions, axis=0, dtype=bool).astype(int)
+
+
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
                                                             list_models=list_models, using_proba=False, aggregation_function=function_test,
                                                             multi_label=True, model_name=model_name, model_dir=model_dir)
@@ -2273,7 +2276,7 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
 
             # Set model with function majority_vote and list_models=[model, model]
             model_name = 'aggregation_multi_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -2287,7 +2290,8 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
             # Set model with function majority_vote and list_models=[model_name, model_name]
             svm1 = model_tfidf_svm.ModelTfidfSvm()
             svm2 = model_tfidf_svm.ModelTfidfSvm()
-            list_models = [svm1, svm2]
+            gbt = model_tfidf_gbt.ModelTfidfGbt()
+            list_models = [svm1, svm2, gbt]
             model_name = 'aggregation_multi_class_mono_label'
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
@@ -2302,7 +2306,7 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
             # Set model with function majority_vote and list_models=[model_name, model]
             model_name = 'aggregation_multi_class_mono_label'
             svm = model_tfidf_svm.ModelTfidfSvm()
-            list_models = [svm, model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [svm, model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -2315,7 +2319,7 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
 
             # Set model with function proba_argmax
             model_name = 'aggregation_multi_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
@@ -2328,15 +2332,20 @@ class Case4_MultiClassMonoLabel(unittest.TestCase):
 
             # Set model with function given
             model_name = 'aggregation_multi_class_mono_label'
-            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm()]
+            list_models = [model_tfidf_svm.ModelTfidfSvm(), model_tfidf_svm.ModelTfidfSvm(), model_tfidf_gbt.ModelTfidfGbt()]
             model_dir = os.path.join(utils.get_models_path(), model_name, datetime.now().strftime(f"{model_name}_%Y_%m_%d-%H_%M_%S"))
             os.makedirs(model_dir)
+
+            # This function is a copy of majority_vote function
             def function_test(predictions:pd.Series) -> list:
-                votes = predictions.value_counts().sort_values(ascending=False)
-                if len(votes) > 1 and votes.iloc[0] == votes.iloc[1]:
+                labels, counts = np.unique(predictions, return_counts=True)
+                votes = [(label, count) for label, count in zip(labels, counts)]
+                votes = sorted(votes, key=lambda x: x[1], reverse=True)
+                if len(votes) > 1 and votes[0][1] == votes[1][1]:
                     return predictions[0]
                 else:
-                    return votes.index[0]
+                    return votes[0][0]
+
             test_model = model_aggregation.ModelAggregation(x_col='preprocessed_text', y_col='y_col', level_save="HIGH",
                                                         list_models=list_models, using_proba=False, aggregation_function=function_test,
                                                         multi_label=False, model_name=model_name, model_dir=model_dir)
