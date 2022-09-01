@@ -31,7 +31,6 @@ from typing import List, Callable, Union
 
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
-from {{package_name}}.monitoring.model_logger import ModelLogger
 from {{package_name}}.models_training.model_class import ModelClass
 
 
@@ -49,7 +48,7 @@ class ModelAggregation(ModelClass):
             multi_label (bool): If the classification is multi-labels
 
         Raises:
-            ValueError : if aggregation_function object is Callable and using_proba is None
+            ValueError : if aggregation_function object is Callable and using_proba/multi_label is None
             ValueError : if the object aggregation_function is a str but not found in the dictionary dict_aggregation_function
             ValueError : if the object aggregation_function is not compatible with value using_proba
             ValueError : if the object aggregation_function is not compatible with value multi_label
@@ -69,8 +68,8 @@ class ModelAggregation(ModelClass):
                                      'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
                                      'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
         if isinstance(aggregation_function, (Callable)):
-            if using_proba is None:
-                raise ValueError(f"When aggregation_function is Callable, using_proba(bool) cannot be None ")
+            if using_proba is None or multi_label is None:
+                raise ValueError(f"When aggregation_function is Callable, using_proba(bool) and multi_label(bool) cannot be None ")
         else:
             if aggregation_function not in dict_aggregation_function.keys():
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
@@ -328,7 +327,7 @@ class ModelAggregation(ModelClass):
         for model in self.list_real_models:
             model.save()
 
-        json_data['list_models'] = self.list_models.copy()
+        json_data['list_models'] = self.list_models.copy() if self.list_models is not None else None
         json_data['using_proba'] = self.using_proba
 
         aggregation_function = self.aggregation_function
