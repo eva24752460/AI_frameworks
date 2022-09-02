@@ -27,7 +27,7 @@ import dill as pickle
 
 import numpy as np
 import pandas as pd
-from types import FunctionType
+from types import FunctionType, MethodType
 from typing import Callable, Union, TypedDict, Dict
 
 from {{package_name}} import utils
@@ -69,7 +69,7 @@ class ModelAggregation(ModelClass):
                                                                         'proba_argmax': {'function': self.proba_argmax, 'using_proba': True, 'multi_label': False},
                                                                         'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
                                                                         'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
-        if isinstance(aggregation_function, FunctionType):
+        if isinstance(aggregation_function, (FunctionType, MethodType)):
             if using_proba is None or multi_label is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) and multi_label(bool) cannot be None ")
         elif isinstance(aggregation_function, str):
