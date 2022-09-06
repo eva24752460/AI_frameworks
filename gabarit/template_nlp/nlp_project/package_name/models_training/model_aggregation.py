@@ -28,7 +28,7 @@ import dill as pickle
 import numpy as np
 import pandas as pd
 from types import FunctionType, MethodType
-from typing import Callable, Union, TypedDict, Dict # type: ignore
+from typing import Callable, Union, TypedDict, Dict
 
 from {{package_name}} import utils
 from {{package_name}}.models_training import utils_models
@@ -65,7 +65,7 @@ class ModelAggregation(ModelClass):
         self.using_proba = using_proba
         self.multi_label = multi_label
         typed_dict_aggregation = TypedDict('typed_dict_aggregation', {'function': Callable, 'using_proba': bool, 'multi_label': bool}) # type: ignore
-        dict_aggregation_function: Dict[str, typed_dict_aggregation] = {'majority_vote': {'function': self.majority_vote, 'using_proba': False, 'multi_label': False}, # type: ignore
+        dict_aggregation_function: Dict[str, typed_dict_aggregation] = {'majority_vote': {'function': self.majority_vote, 'using_proba': False, 'multi_label': False},
                                                                         'proba_argmax': {'function': self.proba_argmax, 'using_proba': True, 'multi_label': False},
                                                                         'all_predictions': {'function': self.all_predictions, 'using_proba': False, 'multi_label': True},
                                                                         'vote_labels': {'function': self.vote_labels, 'using_proba': False, 'multi_label': True}}
@@ -73,17 +73,17 @@ class ModelAggregation(ModelClass):
             if using_proba is None or multi_label is None:
                 raise ValueError(f"When aggregation_function is Callable, using_proba(bool) and multi_label(bool) cannot be None ")
         elif isinstance(aggregation_function, str):
-            if aggregation_function not in dict_aggregation_function.keys(): # type: ignore
+            if aggregation_function not in dict_aggregation_function.keys():
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not a valid option ({dict_aggregation_function.keys()})")
             if using_proba is None:
-                self.using_proba = dict_aggregation_function[aggregation_function]['using_proba'] # type: ignore
-            elif using_proba != dict_aggregation_function[aggregation_function]['using_proba']: # type: ignore
+                self.using_proba = dict_aggregation_function[aggregation_function]['using_proba']
+            elif using_proba != dict_aggregation_function[aggregation_function]['using_proba']:
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with using_proba=({using_proba})")
             if multi_label is None:
-                self.multi_label = dict_aggregation_function[aggregation_function]['multi_label'] # type: ignore
-            elif multi_label != dict_aggregation_function[aggregation_function]['multi_label']: # type: ignore
+                self.multi_label = dict_aggregation_function[aggregation_function]['multi_label']
+            elif multi_label != dict_aggregation_function[aggregation_function]['multi_label']:
                 raise ValueError(f"The aggregation_function object ({aggregation_function}) is not compatible with multi_label=({multi_label})")
-            aggregation_function = dict_aggregation_function[aggregation_function]['function'] # type: ignore
+            aggregation_function = dict_aggregation_function[aggregation_function]['function']
 
         # Manage model
         self.aggregation_function = aggregation_function
@@ -195,7 +195,7 @@ class ModelAggregation(ModelClass):
             preds = self._get_probas(x_test, **kwargs)
         else:
             preds = self._get_predictions(x_test, **kwargs)
-        return np.array([self.aggregation_function(array) for array in preds]) # type: ignore
+        return np.array([self.aggregation_function(array) for array in preds])
 
     @utils.data_agnostic_str_to_list
     @utils.trained_needed
