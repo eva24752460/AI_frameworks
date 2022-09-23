@@ -141,7 +141,6 @@ class ModelAggregation(ModelClass):
                     raise TypeError('There are more than one type of labels in the list models.')
                 self.list_classes.sort()
 
-                # self.list_classes = [int(label) if label.isdigit() else label for label in self.list_classes]
                 # Set dict_classes based on list classes
                 self.dict_classes = {i: col for i, col in enumerate(self.list_classes)}
 
